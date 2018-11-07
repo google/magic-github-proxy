@@ -64,3 +64,8 @@ GET /repos/someorg/.+?/issues
 ## Usage
 
 TODO
+
+
+## Disclaimer
+
+This is not an official Google product, experimental or otherwise. This is not a magic bullet for security. You assume all risks when using this project.
