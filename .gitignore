@@ -70,3 +70,6 @@ target/
 
 # pyenv
 .python-version
+
+#mypy
+.mypy_cache/

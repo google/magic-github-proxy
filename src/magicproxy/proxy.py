@@ -17,7 +17,7 @@ import re
 import flask
 import requests
 
-import magictoken
+from . import magictoken
 
 GITHUB_API_ROOT = "https://api.github.com"
 KEYS = magictoken.Keys.from_files("keys/private.pem", "keys/public.x509.cer")
@@ -109,7 +109,3 @@ def proxy(path):
     response_headers["X-Thea-Codes-GitHub-Proxy"] = "1"
 
     return resp.content, resp.status_code, response_headers
-
-
-if __name__ == "__main__":
-    app.run(debug=True)

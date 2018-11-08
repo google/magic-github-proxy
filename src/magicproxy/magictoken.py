@@ -36,7 +36,7 @@ _PADDING = padding.OAEP(
 )
 
 
-def _datetime_to_secs(value: datetime) -> int:
+def _datetime_to_secs(value: datetime.datetime) -> int:
     return calendar.timegm(value.utctimetuple())
 
 

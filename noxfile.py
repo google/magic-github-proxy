@@ -75,3 +75,27 @@ def generate_keys(session):
         "-days",
         "1825",
     )
+
+
+@nox.session(python="3.7")
+def blacken(session):
+    session.install("black")
+    session.run("black", "src/magicproxy", "tests", "setup.py", "noxfile.py")
+
+
+@nox.session(python="3.7")
+def lint(session):
+    session.install("mypy", "flake8", "black")
+    session.run("pip", "install", "-e", ".")
+    session.run("black", "--check", "src/magicproxy", "tests")
+    session.run("flake8", "src/magicproxy", "tests")
+    session.run(
+        "mypy", "--no-strict-optional", "--ignore-missing-imports", "src/magicproxy"
+    )
+
+
+@nox.session(python="3.7")
+def test(session):
+    session.install("pytest")
+    session.run("pip", "install", "-e", ".")
+    session.run("pytest", "tests", *session.posargs)
