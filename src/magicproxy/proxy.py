@@ -79,23 +79,26 @@ def proxy(path):
         auth_token = auth_token[len() :]
 
     # Validate the magic token
-    github_token, scopes = magictoken.decode(KEYS, auth_token)
+    token_info = magictoken.decode(KEYS, auth_token)
 
     # Validate scopes againt URL and method.
     validated = False
-    for scope in scopes:
+    for scope in token_info.scopes:
         if validate_scope(flask.request.method, path, scope):
             validated = True
             break
 
     if not validated:
-        return f"Disallowed by GitHub proxy. Allowed scopes: {', '.join(scopes)}", 401
+        return (
+            f"Disallowed by GitHub proxy. Allowed scopes: {', '.join(token_info.scopes)}",
+            401,
+        )
 
     # Make request data to pass to GitHub
     headers = dict(flask.request.headers)
     del headers["Host"]
     del headers["Connection"]
-    headers["Authorization"] = f"Bearer {github_token}"
+    headers["Authorization"] = f"Bearer {token_info.token_infogithub_token}"
 
     # Make the GitHub request
     resp = requests.request(
