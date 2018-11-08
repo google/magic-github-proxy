@@ -15,7 +15,7 @@
 import base64
 import calendar
 import datetime
-from typing import Tuple, List
+from typing import List
 
 import attr
 from cryptography import x509
@@ -110,7 +110,13 @@ def create(keys: Keys, github_token, scopes) -> str:
     return jwt.decode("utf-8")
 
 
-def decode(keys, token) -> Tuple[str, List[str]]:
+@attr.s(slots=True, auto_attribs=True)
+class DecodeResult:
+    github_token: str
+    scopes: List[str]
+
+
+def decode(keys, token) -> DecodeResult:
     claims = google.auth.jwt.decode(token, verify=True, certs=[keys.certificate_pem])
 
     decoded_github_token = base64.b64decode(claims["github_token"])
@@ -119,13 +125,4 @@ def decode(keys, token) -> Tuple[str, List[str]]:
     )
     claims["github_token"] = decrypted_github_token
 
-    return claims["github_token"], claims["scopes"]
-
-
-# keys = Keys.from_files("keys/private.pem", "keys/public.x509.cer")
-
-# claims = create_token(keys, "awwyis", ["one", "two"])
-
-# print(claims)
-
-# print(decode_token(keys, claims))
+    return DecodeResult(claims["github_token"], claims["scopes"])
