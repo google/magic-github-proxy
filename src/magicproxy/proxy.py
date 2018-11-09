@@ -40,7 +40,7 @@ def create_magic_token():
     return token, 200, {"Content-Type": "application/jwt"}
 
 
-def validate_scope(method, path, scope):
+def _validate_scope(method, path, scope):
     """Basic scope validation routine.
 
     The scope must be in the format:
@@ -70,13 +70,57 @@ def validate_scope(method, path, scope):
     return True
 
 
-@app.route("/<path:path>", methods=["POST", "GET", "PATCH", "PUT", "DELETE"])
-def proxy(path):
-    auth_token = flask.request.headers["Authorization"]
+def _clean_request_headers(headers):
+    headers = dict(headers)
+    headers.pop("Host", None)
+    headers.pop("Connection", None)
+    # Drop the existing authorization header, it'll only cause problems.
+    headers.pop("Authorization", None)
+    return headers
 
+
+def _clean_response_headers(headers):
+    headers = dict(headers)
+    headers.pop("Content-Length", None)
+    headers.pop("Content-Encoding", None)
+    headers.pop("Transfer-Encoding", None)
+    headers["X-Thea-Codes-GitHub-Proxy"] = "1"
+    return headers
+
+
+def _proxy_request(request, url, headers=None, **kwargs):
+    clean_headers = _clean_request_headers(request.headers)
+
+    if headers:
+        clean_headers.update(headers)
+
+    print(
+        f"Proxying to {request.method} {url}\nHeaders: {clean_headers}\nQuery: {request.args}\nContent: {request.data}"
+    )
+
+    # Make the GitHub request
+    resp = requests.request(
+        url=url,
+        method=request.method,
+        headers=clean_headers,
+        params=dict(request.args),
+        data=request.data,
+        **kwargs,
+    )
+
+    response_headers = _clean_response_headers(resp.headers)
+
+    print(resp, resp.headers, resp.content)
+
+    return resp.content, resp.status_code, response_headers
+
+
+@app.route("/<path:path>", methods=["POST", "GET", "PATCH", "PUT", "DELETE"])
+def proxy_api(path):
+    auth_token = flask.request.headers["Authorization"]
     # strip out "Bearer " if needed
     if auth_token.startswith("Bearer "):
-        auth_token = auth_token[len() :]
+        auth_token = auth_token[len("Bearer ") :]
 
     # Validate the magic token
     token_info = magictoken.decode(KEYS, auth_token)
@@ -84,7 +128,7 @@ def proxy(path):
     # Validate scopes againt URL and method.
     validated = False
     for scope in token_info.scopes:
-        if validate_scope(flask.request.method, path, scope):
+        if _validate_scope(flask.request.method, path, scope):
             validated = True
             break
 
@@ -94,21 +138,8 @@ def proxy(path):
             401,
         )
 
-    # Make request data to pass to GitHub
-    headers = dict(flask.request.headers)
-    del headers["Host"]
-    del headers["Connection"]
-    headers["Authorization"] = f"Bearer {token_info.github_token}"
-
-    # Make the GitHub request
-    resp = requests.request(
-        url=f"{GITHUB_API_ROOT}/{path}", method=flask.request.method, headers=headers
+    return _proxy_request(
+        request=flask.request,
+        url=f"{GITHUB_API_ROOT}/{path}",
+        headers={"Authorization": f"Bearer {token_info.github_token}"},
     )
-
-    response_headers = dict(resp.headers)
-    response_headers.pop("Content-Length", None)
-    response_headers.pop("Content-Encoding", None)
-    response_headers.pop("Transfer-Encoding", None)
-    response_headers["X-Thea-Codes-GitHub-Proxy"] = "1"
-
-    return resp.content, resp.status_code, response_headers
