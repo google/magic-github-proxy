@@ -98,7 +98,7 @@ def proxy(path):
     headers = dict(flask.request.headers)
     del headers["Host"]
     del headers["Connection"]
-    headers["Authorization"] = f"Bearer {token_info.token_infogithub_token}"
+    headers["Authorization"] = f"Bearer {token_info.github_token}"
 
     # Make the GitHub request
     resp = requests.request(
