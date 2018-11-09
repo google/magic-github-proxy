@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import re
+from typing import Tuple
 
 import flask
 import requests
 
 from . import magictoken
+from . import scopes
 
 GITHUB_API_ROOT = "https://api.github.com"
 KEYS = magictoken.Keys.from_files("keys/private.pem", "keys/public.x509.cer")
@@ -40,36 +41,6 @@ def create_magic_token():
     return token, 200, {"Content-Type": "application/jwt"}
 
 
-def _validate_scope(method, path, scope):
-    """Basic scope validation routine.
-
-    The scope must be in the format:
-
-        METHOD path
-
-    For example:
-
-        GET /user
-        POST /repos/+?/+?/issues/+?/labels
-
-    Would allow getting the user info and updating labels on issues.
-    """
-    allowed_method, allowed_path = scope.split(" ", 1)
-
-    if method != allowed_method and allowed_method != "*":
-        return False
-
-    if not path.startswith("/"):
-        path = f"/{path}"
-
-    print(method, path, scope, allowed_method, allowed_path)
-
-    if not re.match(allowed_path, path, re.I):
-        return False
-
-    return True
-
-
 def _clean_request_headers(headers):
     headers = dict(headers)
     headers.pop("Host", None)
@@ -88,7 +59,9 @@ def _clean_response_headers(headers):
     return headers
 
 
-def _proxy_request(request, url, headers=None, **kwargs):
+def _proxy_request(
+    request: flask.Request, url: str, headers=None, **kwargs
+) -> Tuple[bytes, int, dict]:
     clean_headers = _clean_request_headers(request.headers)
 
     if headers:
@@ -125,14 +98,8 @@ def proxy_api(path):
     # Validate the magic token
     token_info = magictoken.decode(KEYS, auth_token)
 
-    # Validate scopes againt URL and method.
-    validated = False
-    for scope in token_info.scopes:
-        if _validate_scope(flask.request.method, path, scope):
-            validated = True
-            break
-
-    if not validated:
+    # Validate scopes against URL and method.
+    if not scopes.validate_request(flask.request.method, path, token_info.scopes):
         return (
             f"Disallowed by GitHub proxy. Allowed scopes: {', '.join(token_info.scopes)}",
             401,
@@ -143,3 +110,7 @@ def proxy_api(path):
         url=f"{GITHUB_API_ROOT}/{path}",
         headers={"Authorization": f"Bearer {token_info.github_token}"},
     )
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
