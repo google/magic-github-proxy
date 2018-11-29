@@ -23,6 +23,8 @@ KEYS = magictoken.Keys.from_files("keys/private.pem", "keys/public.x509.cer")
 
 routes = aiohttp.web.RouteTableDef()
 
+_query_params_to_clean = set()
+_custom_request_headers_to_clean = set()
 
 @routes.post("/magictoken")
 async def create_magic_token(request):
@@ -45,6 +47,7 @@ def _clean_request_headers(headers):
     headers.pop("Connection", None)
     # Drop the existing authorization header, it'll only cause problems.
     headers.pop("Authorization", None)
+    headers = _clean_custom_request_headers(headers)
     return headers
 
 
@@ -110,12 +113,35 @@ async def proxy_api(request):
             f"Disallowed by GitHub proxy. Allowed scopes: {', '.join(token_info.scopes)}"
         )
 
+    path = _clean_path_queries(path)
+
     return await _proxy_request(
         request=request,
         url=f"{GITHUB_API_ROOT}/{path}",
         headers={"Authorization": f"Bearer {token_info.github_token}"},
     )
 
+def _clean_path_queries(path) -> str:
+    for param in _query_params_to_clean:
+        path, replaced = re.subn('({}=[\w*-+.%]*)(?:$|\&)'.format(param),'',path)
+    return path
+
+def queries_to_clean(querystrings: List[str]):
+    for param in querystrings:
+        if re.match('^[a-zA-Z]+$',param) is not None:
+            _query_params_to_clean.add(param)
+
+def _clean_custom_request_headers(headers) -> dict:
+    headers = dict(headers)
+    for remove in _custom_request_headers_to_clean:
+        if remove in headers:
+            headers.pop(remove, None)
+    return headers
+
+def custom_reqeust_headers_to_clean(headers: List[str]):
+    for head in headers:
+        if re.match('^[a-zA-Z-]+$',head) is not None:
+            _custom_request_headers_to_clean.add(head)
 
 async def build_app(argv):
     app = aiohttp.web.Application()

@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple
+from typing import Tuple, List
 
 import flask
 import requests
+import re
 
 from . import magictoken
 from . import scopes
@@ -25,6 +26,9 @@ KEYS = magictoken.Keys.from_files("keys/private.pem", "keys/public.x509.cer")
 
 app = flask.Flask(__name__)
 
+_query_params_to_clean = set()
+
+_custom_request_headers_to_clean = set()
 
 @app.route("/magictoken", methods=["POST", "GET"])
 def create_magic_token():
@@ -47,6 +51,7 @@ def _clean_request_headers(headers):
     headers.pop("Connection", None)
     # Drop the existing authorization header, it'll only cause problems.
     headers.pop("Authorization", None)
+    headers = _clean_custom_request_headers(headers)
     return headers
 
 
@@ -105,11 +110,35 @@ def proxy_api(path):
             401,
         )
 
+    path = _clean_path_queries(path)
+
     return _proxy_request(
         request=flask.request,
         url=f"{GITHUB_API_ROOT}/{path}",
         headers={"Authorization": f"Bearer {token_info.github_token}"},
     )
+
+def _clean_path_queries(path) -> str:
+    for param in _query_params_to_clean:
+        path, replaced = re.subn('({}=[\w*-+.%]*)(?:$|\&)'.format(param),'',path)
+    return path
+
+def queries_to_clean(querystrings: List[str]):
+    for param in querystrings:
+        if re.match('^[a-zA-Z]+$',param) is not None:
+            _query_params_to_clean.add(param)
+
+def _clean_custom_request_headers(headers) -> dict:
+    headers = dict(headers)
+    for remove in _custom_request_headers_to_clean:
+        if remove in headers:
+            headers.pop(remove, None)
+    return headers
+
+def custom_reqeust_headers_to_clean(headers: List[str]):
+    for head in headers:
+        if re.match('^[a-zA-Z-]+$',head) is not None:
+            _custom_request_headers_to_clean.add(head)
 
 
 if __name__ == "__main__":
