@@ -15,11 +15,12 @@
 import aiohttp
 import aiohttp.web
 
+import os
+
 from . import magictoken
 from . import scopes
 
 GITHUB_API_ROOT = "https://api.github.com"
-KEYS = magictoken.Keys.from_files("keys/private.pem", "keys/public.x509.cer")
 
 routes = aiohttp.web.RouteTableDef()
 
@@ -118,6 +119,10 @@ async def proxy_api(request):
 
 
 async def build_app(argv):
+    private_key_location = os.environ['MAGICPROXY_PRIVATE_KEY']
+    public_key_location = os.environ['MAGICPROXY_PUBLIC_KEY']
+    KEYS = magictoken.Keys.from_files(private_key_location, public_key_location)
+
     app = aiohttp.web.Application()
     app.add_routes(routes)
     return app

@@ -15,4 +15,4 @@
 from magicproxy import proxy
 
 if __name__ == "__main__":
-    proxy.app.run(debug=True)
+    proxy.run_app()

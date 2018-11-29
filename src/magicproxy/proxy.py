@@ -21,7 +21,6 @@ from . import magictoken
 from . import scopes
 
 GITHUB_API_ROOT = "https://api.github.com"
-KEYS = magictoken.Keys.from_files("keys/private.pem", "keys/public.x509.cer")
 
 app = flask.Flask(__name__)
 
@@ -111,6 +110,12 @@ def proxy_api(path):
         headers={"Authorization": f"Bearer {token_info.github_token}"},
     )
 
+def run_app():
+    private_key_location = os.environ['MAGICPROXY_PRIVATE_KEY']
+    public_key_location = os.environ['MAGICPROXY_PUBLIC_KEY']
+    KEYS = magictoken.Keys.from_files(private_key_location, public_key_location)
+
+    app.run()
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    run_app()
