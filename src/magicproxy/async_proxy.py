@@ -17,6 +17,8 @@ import aiohttp.web
 
 from . import magictoken
 from . import scopes
+from . import headers
+from . import queries
 
 GITHUB_API_ROOT = "https://api.github.com"
 KEYS = magictoken.Keys.from_files("keys/private.pem", "keys/public.x509.cer")
@@ -41,27 +43,8 @@ async def create_magic_token(request):
     return aiohttp.web.Response(body=token, headers={"Content-Type": "application/jwt"})
 
 
-def _clean_request_headers(headers):
-    headers = dict(headers)
-    headers.pop("Host", None)
-    headers.pop("Connection", None)
-    # Drop the existing authorization header, it'll only cause problems.
-    headers.pop("Authorization", None)
-    headers = _clean_custom_request_headers(headers)
-    return headers
-
-
-def _clean_response_headers(headers):
-    headers = dict(headers)
-    headers.pop("Content-Length", None)
-    headers.pop("Content-Encoding", None)
-    headers.pop("Transfer-Encoding", None)
-    headers["X-Thea-Codes-GitHub-Proxy"] = "1"
-    return headers
-
-
 async def _proxy_request(request, url, headers=None, **kwargs):
-    clean_headers = _clean_request_headers(request.headers)
+    clean_headers = headers.clean_request_headers(request.headers, _custom_request_headers_to_clean)
 
     if headers:
         clean_headers.update(headers)
@@ -78,7 +61,7 @@ async def _proxy_request(request, url, headers=None, **kwargs):
             **kwargs,
         )
         async with proxied_request as proxied_response:
-            response_headers = _clean_response_headers(proxied_response.headers)
+            response_headers = headers.clean_response_headers(proxied_response.headers)
 
             response = aiohttp.web.StreamResponse(
                 status=proxied_response.status, headers=response_headers
@@ -113,7 +96,7 @@ async def proxy_api(request):
             f"Disallowed by GitHub proxy. Allowed scopes: {', '.join(token_info.scopes)}"
         )
 
-    path = _clean_path_queries(path)
+    path = queries.clean_path_queries(_query_params_to_clean, path)
 
     return await _proxy_request(
         request=request,
@@ -121,22 +104,8 @@ async def proxy_api(request):
         headers={"Authorization": f"Bearer {token_info.github_token}"},
     )
 
-def _clean_path_queries(path) -> str:
-    for param in _query_params_to_clean:
-        path, replaced = re.subn('({}=[\w*-+.%]*)(?:$|\&)'.format(param),'',path)
-    return path
-
 def queries_to_clean(querystrings: List[str]):
-    for param in querystrings:
-        if re.match('^[a-zA-Z]+$',param) is not None:
-            _query_params_to_clean.add(param)
-
-def _clean_custom_request_headers(headers) -> dict:
-    headers = dict(headers)
-    for remove in _custom_request_headers_to_clean:
-        if remove in headers:
-            headers.pop(remove, None)
-    return headers
+    _query_params_to_clean.add(param)
 
 def custom_reqeust_headers_to_clean(headers: List[str]):
     for head in headers:
