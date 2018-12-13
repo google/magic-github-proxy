@@ -13,6 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+DEFAULT_REMOVED_REQUEST_HEADERS = set(["Host", "Connection", "Authorization"])
+
+DEFAULT_REMOVED_RESPONSE_HEADERS = set(["Content-Length",
+                                    "Content-Encoding",
+                                    "Transfer-Encoding"])
+
 def clean_request_headers(headers, custom_clean_headers):
     """Removes HTTP Headers for a Request
 
@@ -24,11 +31,8 @@ def clean_request_headers(headers, custom_clean_headers):
       HTTP headers that have been cleaned of unwanted values
     """
     headers = dict(headers)
-    headers.pop("Host", None)
-    headers.pop("Connection", None)
-    # Drop the existing authorization header, it'll only cause problems.
-    headers.pop("Authorization", None)
-    headers = _clean_custom_request_headers(headers, custom_clean_headers)
+    for rmv in DEFAULT_REMOVED_REQUEST_HEADERS.union(custom_clean_headers):
+        headers.pop(rmv, None)
     return headers
 
 def clean_response_headers(headers):
@@ -41,16 +45,7 @@ def clean_response_headers(headers):
       HTTP headers that have been cleaned of unwanted values
     """
     headers = dict(headers)
-    headers.pop("Content-Length", None)
-    headers.pop("Content-Encoding", None)
-    headers.pop("Transfer-Encoding", None)
+    for rmv in DEFAULT_REMOVED_RESPONSE_HEADERS:
+        headers.pop(rmv, None)
     headers["X-Thea-Codes-GitHub-Proxy"] = "1"
-    return headers
-
-
-def _clean_custom_request_headers(headers, custom_clean_headers) -> dict:
-    headers = dict(headers)
-    for remove in custom_clean_headers:
-        if remove in headers:
-            headers.pop(remove, None)
     return headers
