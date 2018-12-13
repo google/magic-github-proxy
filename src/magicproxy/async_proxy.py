@@ -108,9 +108,7 @@ def queries_to_clean(querystrings: List[str]):
     _query_params_to_clean.add(param)
 
 def custom_reqeust_headers_to_clean(headers: List[str]):
-    for head in headers:
-        if re.match('^[a-zA-Z-]+$',head) is not None:
-            _custom_request_headers_to_clean.add(head)
+    _custom_request_headers_to_clean.add(headers)
 
 async def build_app(argv):
     app = aiohttp.web.Application()
