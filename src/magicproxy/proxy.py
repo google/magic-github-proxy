@@ -35,7 +35,7 @@ def create_magic_token():
     if not isinstance(params.get("scopes"), list):
         return "scopes must be a list", 400
 
-    token = magictoken.create(KEYS, params["github_token"], params["scopes"])
+    token = magictoken.create(keys, params["github_token"], params["scopes"])
 
     return token, 200, {"Content-Type": "application/jwt"}
 
@@ -95,7 +95,7 @@ def proxy_api(path):
         auth_token = auth_token[len("Bearer ") :]
 
     # Validate the magic token
-    token_info = magictoken.decode(KEYS, auth_token)
+    token_info = magictoken.decode(keys, auth_token)
 
     # Validate scopes against URL and method.
     if not scopes.validate_request(flask.request.method, path, token_info.scopes):
@@ -111,10 +111,7 @@ def proxy_api(path):
     )
 
 def run_app():
-    private_key_location = os.environ['MAGICPROXY_PRIVATE_KEY']
-    public_key_location = os.environ['MAGICPROXY_PUBLIC_KEY']
-    KEYS = magictoken.Keys.from_files(private_key_location, public_key_location)
-
+    keys = magictoken.Keys.from_env()
     app.run()
 
 if __name__ == "__main__":

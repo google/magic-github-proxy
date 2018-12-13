@@ -35,7 +35,7 @@ async def create_magic_token(request):
     if not isinstance(params.get("scopes"), list):
         raise aiohttp.web.HTTPInvalidRequest("Scopes must be a list.")
 
-    token = magictoken.create(KEYS, params["github_token"], params["scopes"])
+    token = magictoken.create(keys, params["github_token"], params["scopes"])
 
     return aiohttp.web.Response(body=token, headers={"Content-Type": "application/jwt"})
 
@@ -103,7 +103,7 @@ async def proxy_api(request):
         auth_token = auth_token[len("Bearer ") :]
 
     # Validate the magic token
-    token_info = magictoken.decode(KEYS, auth_token)
+    token_info = magictoken.decode(keys, auth_token)
 
     # Validate scopes againt URL and method.
     if not scopes.validate_request(request.method, request.path, token_info.scopes):
@@ -119,9 +119,7 @@ async def proxy_api(request):
 
 
 async def build_app(argv):
-    private_key_location = os.environ['MAGICPROXY_PRIVATE_KEY']
-    public_key_location = os.environ['MAGICPROXY_PUBLIC_KEY']
-    KEYS = magictoken.Keys.from_files(private_key_location, public_key_location)
+    keys = magictoken.Keys.from_env()
 
     app = aiohttp.web.Application()
     app.add_routes(routes)

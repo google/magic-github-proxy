@@ -15,6 +15,7 @@
 import base64
 import calendar
 import datetime
+import os
 from typing import List
 
 import attr
@@ -86,6 +87,12 @@ class Keys:
             certificate=certificate,
             certificate_pem=certificate_pem,
         )
+
+    @classmethod
+    def from_env(cls):
+        private_key_location = os.environ['MAGICPROXY_PRIVATE_KEY']
+        public_key_location = os.environ['MAGICPROXY_PUBLIC_KEY']
+        return Keys.from_files(private_key_location, public_key_location)
 
 
 def create(keys: Keys, github_token, scopes) -> str:
