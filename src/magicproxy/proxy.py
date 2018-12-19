@@ -23,7 +23,6 @@ from . import scopes
 from . import queries
 
 GITHUB_API_ROOT = "https://api.github.com"
-KEYS = magictoken.Keys.from_files("keys/private.pem", "keys/public.x509.cer")
 
 app = flask.Flask(__name__)
 
@@ -41,7 +40,7 @@ def create_magic_token():
     if not isinstance(params.get("scopes"), list):
         return "scopes must be a list", 400
 
-    token = magictoken.create(KEYS, params["github_token"], params["scopes"])
+    token = magictoken.create(keys, params["github_token"], params["scopes"])
 
     return token, 200, {"Content-Type": "application/jwt"}
 
@@ -83,7 +82,7 @@ def proxy_api(path):
         auth_token = auth_token[len("Bearer ") :]
 
     # Validate the magic token
-    token_info = magictoken.decode(KEYS, auth_token)
+    token_info = magictoken.decode(keys, auth_token)
 
     # Validate scopes against URL and method.
     if not scopes.validate_request(flask.request.method, path, token_info.scopes):
@@ -100,6 +99,7 @@ def proxy_api(path):
         headers={"Authorization": f"Bearer {token_info.github_token}"},
     )
 
+
 def queries_to_clean(querystrings: List[str]):
     _query_params_to_clean.add(param)
 
@@ -110,5 +110,10 @@ def custom_reqeust_headers_to_clean(headers: List[str]):
             _custom_request_headers_to_clean.add(head)
 
 
+def run_app():
+    keys = magictoken.Keys.from_env()
+    app.run()
+
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    run_app()

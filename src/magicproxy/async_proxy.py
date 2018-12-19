@@ -15,13 +15,14 @@
 import aiohttp
 import aiohttp.web
 
+import os
+
 from . import magictoken
 from . import scopes
 from . import headers
 from . import queries
 
 GITHUB_API_ROOT = "https://api.github.com"
-KEYS = magictoken.Keys.from_files("keys/private.pem", "keys/public.x509.cer")
 
 routes = aiohttp.web.RouteTableDef()
 
@@ -38,7 +39,7 @@ async def create_magic_token(request):
     if not isinstance(params.get("scopes"), list):
         raise aiohttp.web.HTTPInvalidRequest("Scopes must be a list.")
 
-    token = magictoken.create(KEYS, params["github_token"], params["scopes"])
+    token = magictoken.create(keys, params["github_token"], params["scopes"])
 
     return aiohttp.web.Response(body=token, headers={"Content-Type": "application/jwt"})
 
@@ -88,7 +89,7 @@ async def proxy_api(request):
         auth_token = auth_token[len("Bearer ") :]
 
     # Validate the magic token
-    token_info = magictoken.decode(KEYS, auth_token)
+    token_info = magictoken.decode(keys, auth_token)
 
     # Validate scopes againt URL and method.
     if not scopes.validate_request(request.method, request.path, token_info.scopes):
@@ -111,6 +112,8 @@ def custom_reqeust_headers_to_clean(headers: List[str]):
     _custom_request_headers_to_clean.add(headers)
 
 async def build_app(argv):
+    keys = magictoken.Keys.from_env()
+
     app = aiohttp.web.Application()
     app.add_routes(routes)
     return app
