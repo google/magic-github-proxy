@@ -119,6 +119,7 @@ async def proxy_api(request):
 
 
 async def build_app(argv):
+    global keys
     keys = magictoken.Keys.from_env()
 
     app = aiohttp.web.Application()

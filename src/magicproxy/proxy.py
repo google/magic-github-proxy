@@ -111,6 +111,7 @@ def proxy_api(path):
     )
 
 def run_app():
+    global keys
     keys = magictoken.Keys.from_env()
     app.run()
 
