@@ -26,9 +26,9 @@ GITHUB_API_ROOT = "https://api.github.com"
 
 app = flask.Flask(__name__)
 
-_query_params_to_clean = set()
+query_params_to_clean = set()
 
-_custom_request_headers_to_clean = set()
+custom_request_headers_to_clean = set()
 
 @app.route("/magictoken", methods=["POST", "GET"])
 def create_magic_token():
@@ -48,7 +48,7 @@ def create_magic_token():
 def _proxy_request(
     request: flask.Request, url: str, headers=None, **kwargs
 ) -> Tuple[bytes, int, dict]:
-    clean_headers = headers.clean_request_headers(request.headers, _custom_request_headers_to_clean)
+    clean_headers = headers.clean_request_headers(request.headers, custom_request_headers_to_clean)
 
     if headers:
         clean_headers.update(headers)
@@ -91,23 +91,13 @@ def proxy_api(path):
             401,
         )
 
-    path = queries.clean_path_queries(_query_params_to_clean, path)
+    path = queries.clean_path_queries(query_params_to_clean, path)
 
     return _proxy_request(
         request=flask.request,
         url=f"{GITHUB_API_ROOT}/{path}",
         headers={"Authorization": f"Bearer {token_info.github_token}"},
     )
-
-
-def queries_to_clean(querystrings: List[str]):
-    _query_params_to_clean.add(param)
-
-
-def custom_reqeust_headers_to_clean(headers: List[str]):
-    for head in headers:
-        if re.match('^[a-zA-Z-]+$',head) is not None:
-            _custom_request_headers_to_clean.add(head)
 
 
 def run_app():

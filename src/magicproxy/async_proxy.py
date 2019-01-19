@@ -26,8 +26,8 @@ GITHUB_API_ROOT = "https://api.github.com"
 
 routes = aiohttp.web.RouteTableDef()
 
-_query_params_to_clean = set()
-_custom_request_headers_to_clean = set()
+query_params_to_clean = set()
+custom_request_headers_to_clean = set()
 
 @routes.post("/magictoken")
 async def create_magic_token(request):
@@ -45,7 +45,7 @@ async def create_magic_token(request):
 
 
 async def _proxy_request(request, url, headers=None, **kwargs):
-    clean_headers = headers.clean_request_headers(request.headers, _custom_request_headers_to_clean)
+    clean_headers = headers.clean_request_headers(request.headers, custom_request_headers_to_clean)
 
     if headers:
         clean_headers.update(headers)
@@ -97,7 +97,7 @@ async def proxy_api(request):
             f"Disallowed by GitHub proxy. Allowed scopes: {', '.join(token_info.scopes)}"
         )
 
-    path = queries.clean_path_queries(_query_params_to_clean, path)
+    path = queries.clean_path_queries(query_params_to_clean, path)
 
     return await _proxy_request(
         request=request,
@@ -105,11 +105,6 @@ async def proxy_api(request):
         headers={"Authorization": f"Bearer {token_info.github_token}"},
     )
 
-def queries_to_clean(querystrings: List[str]):
-    _query_params_to_clean.add(param)
-
-def custom_reqeust_headers_to_clean(headers: List[str]):
-    _custom_request_headers_to_clean.add(headers)
 
 async def build_app(argv):
     keys = magictoken.Keys.from_env()
