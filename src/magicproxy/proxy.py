@@ -12,18 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple
+from typing import Tuple, List
 
 import flask
 import requests
+import re
 
 from . import magictoken
 from . import scopes
+from . import queries
 
 GITHUB_API_ROOT = "https://api.github.com"
 
 app = flask.Flask(__name__)
 
+query_params_to_clean = set()
+
+custom_request_headers_to_clean = set()
 
 @app.route("/magictoken", methods=["POST", "GET"])
 def create_magic_token():
@@ -40,28 +45,10 @@ def create_magic_token():
     return token, 200, {"Content-Type": "application/jwt"}
 
 
-def _clean_request_headers(headers):
-    headers = dict(headers)
-    headers.pop("Host", None)
-    headers.pop("Connection", None)
-    # Drop the existing authorization header, it'll only cause problems.
-    headers.pop("Authorization", None)
-    return headers
-
-
-def _clean_response_headers(headers):
-    headers = dict(headers)
-    headers.pop("Content-Length", None)
-    headers.pop("Content-Encoding", None)
-    headers.pop("Transfer-Encoding", None)
-    headers["X-Thea-Codes-GitHub-Proxy"] = "1"
-    return headers
-
-
 def _proxy_request(
     request: flask.Request, url: str, headers=None, **kwargs
 ) -> Tuple[bytes, int, dict]:
-    clean_headers = _clean_request_headers(request.headers)
+    clean_headers = headers.clean_request_headers(request.headers, custom_request_headers_to_clean)
 
     if headers:
         clean_headers.update(headers)
@@ -80,7 +67,7 @@ def _proxy_request(
         **kwargs,
     )
 
-    response_headers = _clean_response_headers(resp.headers)
+    response_headers = headers.clean_response_headers(resp.headers)
 
     print(resp, resp.headers, resp.content)
 
@@ -104,16 +91,20 @@ def proxy_api(path):
             401,
         )
 
+    path = queries.clean_path_queries(query_params_to_clean, path)
+
     return _proxy_request(
         request=flask.request,
         url=f"{GITHUB_API_ROOT}/{path}",
         headers={"Authorization": f"Bearer {token_info.github_token}"},
     )
 
+
 def run_app():
     global keys
     keys = magictoken.Keys.from_env()
     app.run()
+
 
 if __name__ == "__main__":
     run_app()
