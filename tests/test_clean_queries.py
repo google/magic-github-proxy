@@ -53,3 +53,10 @@ def test_leaves_queries_alone_if_not_set():
     path = 'https://github.com/orthros?someval=&key=123212'
     actual = queries.clean_path_queries(queries_to_clean, path)
     assert actual == 'https://github.com/orthros?someval=&key=123212'
+
+def test_handles_no_queries():
+    queries_to_clean = ['key']
+    path = 'https://github.com/orthros'
+    actual = queries.clean_path_queries(queries_to_clean, path)
+    assert actual == 'https://github.com/orthros'
+
