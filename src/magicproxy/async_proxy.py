@@ -19,7 +19,7 @@ import os
 
 from . import magictoken
 from . import scopes
-from . import headers
+from . import headers as headers_utils
 from . import queries
 
 GITHUB_API_ROOT = "https://api.github.com"
@@ -45,7 +45,7 @@ async def create_magic_token(request):
 
 
 async def _proxy_request(request, url, headers=None, **kwargs):
-    clean_headers = headers.clean_request_headers(request.headers, custom_request_headers_to_clean)
+    clean_headers = headers_utils.clean_request_headers(request.headers, custom_request_headers_to_clean)
 
     if headers:
         clean_headers.update(headers)
@@ -62,7 +62,7 @@ async def _proxy_request(request, url, headers=None, **kwargs):
             **kwargs,
         )
         async with proxied_request as proxied_response:
-            response_headers = headers.clean_response_headers(proxied_response.headers)
+            response_headers = headers_utils.clean_response_headers(proxied_response.headers)
 
             response = aiohttp.web.StreamResponse(
                 status=proxied_response.status, headers=response_headers

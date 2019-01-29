@@ -19,6 +19,7 @@ import requests
 import re
 
 from . import magictoken
+from . import headers as headers_utils
 from . import scopes
 from . import queries
 
@@ -48,7 +49,7 @@ def create_magic_token():
 def _proxy_request(
     request: flask.Request, url: str, headers=None, **kwargs
 ) -> Tuple[bytes, int, dict]:
-    clean_headers = headers.clean_request_headers(request.headers, custom_request_headers_to_clean)
+    clean_headers = headers_utils.clean_request_headers(request.headers, custom_request_headers_to_clean)
 
     if headers:
         clean_headers.update(headers)
@@ -67,7 +68,7 @@ def _proxy_request(
         **kwargs,
     )
 
-    response_headers = headers.clean_response_headers(resp.headers)
+    response_headers = headers_utils.clean_response_headers(resp.headers)
 
     print(resp, resp.headers, resp.content)
 
