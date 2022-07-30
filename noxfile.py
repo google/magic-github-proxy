@@ -21,14 +21,14 @@ import nox
 def create_token(session):
     import requests
 
-    url = input("Enter the URL for your github proxy (https://example.com): ")
-    github_token = input("Enter your GitHub API Token: ")
+    url = input("Enter the URL for your API (https://example.com): ")
+    token = input("Enter your API Token: ")
     scopes = input("Enter a comma-separate list of scopes: ")
 
-    url += "/magictoken"
-    scopes = [x.strip() for x in scopes.split(",")]
+    url += "/__magictoken"
+    scopes = [x.strip() for x in scopes.split(",") if x != ""]
 
-    request_data = {"github_token": github_token, "scopes": scopes}
+    request_data = {"token": token, "scopes": scopes}
 
     resp = requests.post(url, json=request_data)
     resp.raise_for_status()
@@ -77,13 +77,13 @@ def generate_keys(session):
     )
 
 
-@nox.session(python="3.7")
+@nox.session(python="3.8")
 def blacken(session):
     session.install("black")
     session.run("black", "src/magicproxy", "tests", "setup.py", "noxfile.py")
 
 
-@nox.session(python="3.7")
+@nox.session(python="3.8")
 def lint(session):
     session.install("mypy", "flake8", "black")
     session.run("pip", "install", "-e", ".")
@@ -94,7 +94,7 @@ def lint(session):
     )
 
 
-@nox.session(python="3.7")
+@nox.session(python="3.8")
 def test(session):
     session.install("pytest")
     session.run("pip", "install", "-e", ".")

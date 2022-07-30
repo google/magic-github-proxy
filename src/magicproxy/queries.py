@@ -12,11 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from urllib.parse import  parse_qsl, urlencode, urlparse, urlunparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 
 def clean_path_queries(query_params_to_clean, path) -> str:
     parts = urlparse(path)
-    queries = parse_qsl(parts.query, keep_blank_values=True, strict_parsing=True)
-    cln = [q for q in queries if q[0] not in query_params_to_clean]
-    return urlunparse((parts.scheme, parts.netloc, parts.path, parts.params, urlencode(cln), parts.fragment))
+    if parts.query != "":
+        queries = parse_qsl(parts.query, keep_blank_values=True, strict_parsing=True)
+        cln = [q for q in queries if q[0] not in query_params_to_clean]
+        return urlunparse(
+            (
+                parts.scheme,
+                parts.netloc,
+                parts.path,
+                parts.params,
+                urlencode(cln),
+                parts.fragment,
+            )
+        )
+    return path

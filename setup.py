@@ -22,14 +22,14 @@ with open(path.join(here, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
 setup(
-    name="github-magic-proxy",
+    name="api-magic-proxy",
     version="2018.11.08",
-    description="A stateless GitHub proxy",
+    description="A stateless API proxy",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/theacodes/magic-github-proxy",
-    author="Alethea Katherine Flowers",
-    author_email="me@thea.codes",
+    url="https://github.com/rienafairefr/secure-api-proxy",
+    author="adapted from Alethea Katherine Flowers",
+    author_email="matthieu@mmea.fr",
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
@@ -37,13 +37,13 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
     ],
-    keywords="github proxy",
+    keywords="api github proxy",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     install_requires=["google-auth", "flask", "cryptography", "attrs", "requests"],
     python_requires=">=3.6",
     project_urls={
-        "Bug Reports": "https://github.com/theacodes/magic-github-proxy/issues",
-        "Source": "https://github.com/theacodes/magic-github-proxy",
+        "Bug Reports": "https://github.com/rienafairefr/secure-api-proxy/issues",
+        "Source": "https://github.com/rienafairefr/secure-api-proxy",
     },
 )

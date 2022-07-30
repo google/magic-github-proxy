@@ -18,22 +18,24 @@ from magicproxy import headers
 
 
 def test_clean_request_headers_strips_custom_headers():
-    request_headers_to_clean = ['X-Custom-Me']
+    request_headers_to_clean = ["X-Custom-Me"]
     hdrs = dict()
-    hdrs['X-Custom-Me'] = 'A Custom Value'
+    hdrs["X-Custom-Me"] = "A Custom Value"
     actual = headers.clean_request_headers(hdrs, request_headers_to_clean)
-    assert 'X-Custom-Me' not in actual
+    assert "X-Custom-Me" not in actual
+
 
 def test_strips_custom_headers():
-    request_headers_to_clean = ['X-Custom-Me']
+    request_headers_to_clean = ["X-Custom-Me"]
     hdrs = dict()
-    hdrs['X-Custom-Me'] = 'A Custom Value'
+    hdrs["X-Custom-Me"] = "A Custom Value"
     actual = headers.clean_request_headers(hdrs, request_headers_to_clean)
-    assert 'X-Custom-Me' not in actual
+    assert "X-Custom-Me" not in actual
+
 
 def test_leaves_headers_alone_if_undefined():
     request_headers_to_clean = []
     hdrs = dict()
-    hdrs['X-Custom-Me'] = 'A Custom Value'
+    hdrs["X-Custom-Me"] = "A Custom Value"
     actual = headers.clean_request_headers(hdrs, request_headers_to_clean)
     assert hdrs == actual

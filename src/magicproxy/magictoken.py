@@ -90,17 +90,21 @@ class Keys:
 
     @classmethod
     def from_env(cls):
-        private_key_location = os.environ['MAGICPROXY_PRIVATE_KEY']
-        public_key_location = os.environ['MAGICPROXY_PUBLIC_KEY']
+        private_key_location = os.environ.get(
+            "MAGICPROXY_PRIVATE_KEY", "keys/private.pem"
+        )
+        public_key_location = os.environ.get(
+            "MAGICPROXY_PUBLIC_KEY", "keys/public.x509.cer"
+        )
         return Keys.from_files(private_key_location, public_key_location)
 
 
-def create(keys: Keys, github_token, scopes) -> str:
+def create(keys: Keys, token, scopes) -> str:
     # NOTE: This is the *public key* that we use to encrypt this token. It's
     # *extremely* important that the public key is used here, as we want only
     # our *private key* to be able to decrypt this value.
-    encrypted_github_token = _encrypt(keys.public_key, github_token.encode("utf-8"))
-    encoded_github_token = base64.b64encode(encrypted_github_token).decode("utf-8")
+    encrypted_api_token = _encrypt(keys.public_key, token.encode("utf-8"))
+    encoded_api_token = base64.b64encode(encrypted_api_token).decode("utf-8")
 
     issued_at = datetime.datetime.utcnow()
     expires_at = datetime.datetime.utcnow() + datetime.timedelta(days=VALIDITY_PERIOD)
@@ -108,7 +112,7 @@ def create(keys: Keys, github_token, scopes) -> str:
     claims = {
         "iat": _datetime_to_secs(issued_at),
         "exp": _datetime_to_secs(expires_at),
-        "github_token": encoded_github_token,
+        "token": encoded_api_token,
         "scopes": scopes,
     }
 
@@ -119,17 +123,15 @@ def create(keys: Keys, github_token, scopes) -> str:
 
 @attr.s(slots=True, auto_attribs=True)
 class DecodeResult:
-    github_token: str
+    token: str
     scopes: List[str]
 
 
 def decode(keys, token) -> DecodeResult:
     claims = google.auth.jwt.decode(token, verify=True, certs=[keys.certificate_pem])
 
-    decoded_github_token = base64.b64decode(claims["github_token"])
-    decrypted_github_token = _decrypt(keys.private_key, decoded_github_token).decode(
-        "utf-8"
-    )
-    claims["github_token"] = decrypted_github_token
+    decoded_token = base64.b64decode(claims["token"])
+    decrypted_token = _decrypt(keys.private_key, decoded_token).decode("utf-8")
+    claims["token"] = decrypted_token
 
-    return DecodeResult(claims["github_token"], claims["scopes"])
+    return DecodeResult(claims["token"], claims["scopes"])

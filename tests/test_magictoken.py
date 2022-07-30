@@ -35,12 +35,13 @@ def test_create_and_decode():
 
     decoded = magictoken.decode(KEYS, result)
 
-    assert decoded.github_token == github_token
+    assert decoded.token == github_token
     assert scopes == scopes
 
+
 def test_get_from_env_and_decode():
-    os.environ['MAGICPROXY_PRIVATE_KEY'] = os.path.join(DATA, 'private.pem')
-    os.environ['MAGICPROXY_PUBLIC_KEY'] = os.path.join(DATA, 'public.x509.cer')
+    os.environ["MAGICPROXY_PRIVATE_KEY"] = os.path.join(DATA, "private.pem")
+    os.environ["MAGICPROXY_PUBLIC_KEY"] = os.path.join(DATA, "public.x509.cer")
     local_keys = magictoken.Keys.from_env()
 
     github_token = "this is a token"
@@ -53,5 +54,5 @@ def test_get_from_env_and_decode():
 
     decoded = magictoken.decode(local_keys, result)
 
-    assert decoded.github_token == github_token
+    assert decoded.token == github_token
     assert scopes == scopes

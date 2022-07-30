@@ -11,18 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from typing import Tuple, List
+from typing import Tuple
 
 import flask
 import requests
-import re
 
+from magicproxy.config import API_ROOT
+from magicproxy.headers import clean_request_headers, clean_response_headers
 from . import magictoken
 from . import scopes
 from . import queries
-
-GITHUB_API_ROOT = "https://api.github.com"
 
 app = flask.Flask(__name__)
 
@@ -30,7 +28,8 @@ query_params_to_clean = set()
 
 custom_request_headers_to_clean = set()
 
-@app.route("/magictoken", methods=["POST", "GET"])
+
+@app.route("/__magictoken", methods=["POST", "GET"])
 def create_magic_token():
     params = flask.request.json
 
@@ -40,7 +39,7 @@ def create_magic_token():
     if not isinstance(params.get("scopes"), list):
         return "scopes must be a list", 400
 
-    token = magictoken.create(keys, params["github_token"], params["scopes"])
+    token = magictoken.create(keys, params["token"], params["scopes"])
 
     return token, 200, {"Content-Type": "application/jwt"}
 
@@ -48,7 +47,9 @@ def create_magic_token():
 def _proxy_request(
     request: flask.Request, url: str, headers=None, **kwargs
 ) -> Tuple[bytes, int, dict]:
-    clean_headers = headers.clean_request_headers(request.headers, custom_request_headers_to_clean)
+    clean_headers = clean_request_headers(
+        request.headers, custom_request_headers_to_clean
+    )
 
     if headers:
         clean_headers.update(headers)
@@ -67,7 +68,7 @@ def _proxy_request(
         **kwargs,
     )
 
-    response_headers = headers.clean_response_headers(resp.headers)
+    response_headers = clean_response_headers(resp.headers)
 
     print(resp, resp.headers, resp.content)
 
@@ -87,7 +88,7 @@ def proxy_api(path):
     # Validate scopes against URL and method.
     if not scopes.validate_request(flask.request.method, path, token_info.scopes):
         return (
-            f"Disallowed by GitHub proxy. Allowed scopes: {', '.join(token_info.scopes)}",
+            f"Disallowed by API proxy. Allowed scopes: {', '.join(token_info.scopes)}",
             401,
         )
 
@@ -95,8 +96,8 @@ def proxy_api(path):
 
     return _proxy_request(
         request=flask.request,
-        url=f"{GITHUB_API_ROOT}/{path}",
-        headers={"Authorization": f"Bearer {token_info.github_token}"},
+        url=f"{API_ROOT}/{path}",
+        headers={"Authorization": f"Bearer {token_info.token}"},
     )
 
 

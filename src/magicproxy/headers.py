@@ -1,4 +1,3 @@
-
 # Copyright 2018 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,9 +15,10 @@
 
 DEFAULT_REMOVED_REQUEST_HEADERS = set(["Host", "Connection", "Authorization"])
 
-DEFAULT_REMOVED_RESPONSE_HEADERS = set(["Content-Length",
-                                    "Content-Encoding",
-                                    "Transfer-Encoding"])
+DEFAULT_REMOVED_RESPONSE_HEADERS = set(
+    ["Content-Length", "Content-Encoding", "Transfer-Encoding"]
+)
+
 
 def clean_request_headers(headers, custom_clean_headers):
     """Removes HTTP Headers for a Request
@@ -34,6 +34,7 @@ def clean_request_headers(headers, custom_clean_headers):
     for rmv in DEFAULT_REMOVED_REQUEST_HEADERS.union(custom_clean_headers):
         headers.pop(rmv, None)
     return headers
+
 
 def clean_response_headers(headers):
     """Removes HTTP Headers for a Response

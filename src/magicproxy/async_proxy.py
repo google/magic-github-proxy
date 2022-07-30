@@ -15,21 +15,20 @@
 import aiohttp
 import aiohttp.web
 
-import os
-
+from magicproxy.config import API_ROOT
 from . import magictoken
 from . import scopes
 from . import headers
 from . import queries
 
-GITHUB_API_ROOT = "https://api.github.com"
 
 routes = aiohttp.web.RouteTableDef()
 
 query_params_to_clean = set()
 custom_request_headers_to_clean = set()
 
-@routes.post("/magictoken")
+
+@routes.post("/__magictoken")
 async def create_magic_token(request):
     params = await request.json()
 
@@ -39,13 +38,15 @@ async def create_magic_token(request):
     if not isinstance(params.get("scopes"), list):
         raise aiohttp.web.HTTPInvalidRequest("Scopes must be a list.")
 
-    token = magictoken.create(keys, params["github_token"], params["scopes"])
+    token = magictoken.create(keys, params["token"], params["scopes"])
 
     return aiohttp.web.Response(body=token, headers={"Content-Type": "application/jwt"})
 
 
 async def _proxy_request(request, url, headers=None, **kwargs):
-    clean_headers = headers.clean_request_headers(request.headers, custom_request_headers_to_clean)
+    clean_headers = headers.clean_request_headers(
+        request.headers, custom_request_headers_to_clean
+    )
 
     if headers:
         clean_headers.update(headers)
@@ -94,15 +95,15 @@ async def proxy_api(request):
     # Validate scopes againt URL and method.
     if not scopes.validate_request(request.method, request.path, token_info.scopes):
         raise aiohttp.web.HTTPForbidden(
-            f"Disallowed by GitHub proxy. Allowed scopes: {', '.join(token_info.scopes)}"
+            f"Disallowed by API proxy. Allowed scopes: {', '.join(token_info.scopes)}"
         )
 
     path = queries.clean_path_queries(query_params_to_clean, path)
 
     return await _proxy_request(
         request=request,
-        url=f"{GITHUB_API_ROOT}/{path}",
-        headers={"Authorization": f"Bearer {token_info.github_token}"},
+        url=f"{API_ROOT}/{path}",
+        headers={"Authorization": f"Bearer {token_info.token}"},
     )
 
 

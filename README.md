@@ -1,17 +1,17 @@
 # Magic GitHub API Proxy
 
-This is a *stateless* GitHub API proxy that allows creation and use of *access-limited* GitHub API tokens.
+This is a *stateless* API proxy that allows creation and use of *access-limited* API tokens.
 
-Basically, it's identity and access management for GitHub API tokens.
+Basically, it's identity and access management for API tokens.
 
 
 ## Why is this useful?
 
-GitHub's API tokens do not allow fine-grained control over which actions a token can perform (see this [Dear GitHub issue](https://github.com/dear-github/dear-github/issues/113)). For example, you basically have to create a token that has full control over a repository to allow a token to just apply labels to issues.
+GitHub's API tokens (or other APIs, like DigitalOcean's) do not allow fine-grained control over which actions a token can perform (see this [Dear GitHub issue](https://github.com/dear-github/dear-github/issues/113)). For example, you basically have to create a token that has full control over a repository to allow a token to just apply labels to issues.
 
 This is problematic at scale. When you have many jobs, processes, and/or bots interacting with the GitHub API you increase the likelihood that a token could be compromised and tokens with broad permissions have very high consequences.
 
-This proxy allows you to create API tokens with fine-grained permissions (a *magic token*) and then talk to the GitHub API using those magic tokens through a proxy. The proxy validates the magic token is allows to perform the requested action and then forwards the request to the GitHub API using the real GitHub API token.
+This proxy allows you to create API tokens with fine-grained permissions (a *magic token*) and then talk to an API using those magic tokens through a proxy. The proxy validates the magic token is allows to perform the requested action and then forwards the request to the API using the real API token.
 
 
 ## What does *stateless* mean?
@@ -29,7 +29,7 @@ Each magic token is a simple JWT signed by the proxy's *private key* with these 
 {
   "iat": 1541616032,
   "exp": 1699296032,
-  "github_token": "[long encrypted key]",
+  "token": "[long encrypted key]",
   "scopes": [
     "GET /user",
     "GET /repos/theacodes/nox/issues"
@@ -37,7 +37,7 @@ Each magic token is a simple JWT signed by the proxy's *private key* with these 
 }
 ```
 
-The `github_token` claim is an encrypted version of the raw GitHub API token. It's encrypted using the proxy's **public key**, so that only the proxy itself can decrypt it (using its **private** key).
+The `token` claim is an encrypted version of the raw API token. It's encrypted using the proxy's **public key**, so that only the proxy itself can decrypt it (using its **private** key).
 
 The scopes claim determines what the magic token has access to. This proxy has a basic, rudimentary scope implementation described below, but you can implement any scoping strategy you want.
 
