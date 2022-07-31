@@ -28,6 +28,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 import google.auth.crypt
 import google.auth.jwt
 
+from magicproxy.config import PRIVATE_KEY_LOCATION, PUBLIC_KEY_LOCATION
 
 VALIDITY_PERIOD = 365 * 5  # 5 years.
 
@@ -90,13 +91,8 @@ class Keys:
 
     @classmethod
     def from_env(cls):
-        private_key_location = os.environ.get(
-            "MAGICPROXY_PRIVATE_KEY", "keys/private.pem"
-        )
-        public_key_location = os.environ.get(
-            "MAGICPROXY_PUBLIC_KEY", "keys/public.x509.cer"
-        )
-        return Keys.from_files(private_key_location, public_key_location)
+
+        return Keys.from_files(PRIVATE_KEY_LOCATION, PUBLIC_KEY_LOCATION)
 
 
 def create(keys: Keys, token, scopes) -> str:

@@ -13,15 +13,21 @@
 # limitations under the License.
 
 import os
+from urllib.parse import urlparse
 
 import nox
+
+from magicproxy.config import PRIVATE_KEY_LOCATION, PUBLIC_KEY_LOCATION
 
 
 @nox.session(py=False)
 def create_token(session):
     import requests
 
-    url = input("Enter the URL for your API (https://example.com): ")
+    if 'PUBLICLY_ACCESSIBLE' not in os.environ:
+        url = input("Enter the URL for your API (https://example.com): ")
+    else:
+        url = os.environ['PUBLICLY_ACCESSIBLE']
     token = input("Enter your API Token: ")
     scopes = input("Enter a comma-separate list of scopes: ")
 
@@ -45,19 +51,29 @@ def generate_keys(session):
     else:
         openssl = "openssl"
 
+    os.makedirs(os.path.dirname(PRIVATE_KEY_LOCATION), exist_ok=True)
+    os.makedirs(os.path.dirname(PUBLIC_KEY_LOCATION), exist_ok=True)
+
+    if 'PUBLICLY_ACCESSIBLE' not in os.environ:
+        url = input("Enter the URL for your API (https://example.com): ")
+    else:
+        url = os.environ['PUBLICLY_ACCESSIBLE']
+
+    hostname = urlparse(url).hostname
+
     session.run(
         openssl,
         "genpkey",
         "-algorithm",
         "RSA",
         "-out",
-        "keys/private.pem",
+        PRIVATE_KEY_LOCATION,
         "-pkeyopt",
         "rsa_keygen_bits:2048",
     )
 
     session.run(
-        openssl, "rsa", "-pubout", "-in", "keys/private.pem", "-out", "keys/public.pem"
+        openssl, "rsa", "-pubout", "-in", PRIVATE_KEY_LOCATION, "-out", PUBLIC_KEY_LOCATION
     )
 
     session.run(
@@ -65,13 +81,13 @@ def generate_keys(session):
         "req",
         "-batch",
         "-subj",
-        "/C=US/CN=github-proxy.thea.codes",
+        "/CN=" + hostname,
         "-new",
         "-x509",
         "-key",
-        "keys/private.pem",
+        PRIVATE_KEY_LOCATION,
         "-out",
-        "keys/public.x509.cer",
+        PUBLIC_KEY_LOCATION,
         "-days",
         "1825",
     )
