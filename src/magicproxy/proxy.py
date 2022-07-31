@@ -16,6 +16,7 @@ from typing import Tuple
 import flask
 import requests
 
+import magicproxy
 from magicproxy.config import API_ROOT
 from magicproxy.headers import clean_request_headers, clean_response_headers
 from . import magictoken
@@ -31,6 +32,8 @@ custom_request_headers_to_clean = set()
 
 @app.route("/__magictoken", methods=["POST", "GET"])
 def create_magic_token():
+    if flask.request.method == 'GET':
+        return "magic API proxy for " + API_ROOT + " version " + magicproxy.__version__
     params = flask.request.json
 
     if not params:
