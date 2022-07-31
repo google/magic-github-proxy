@@ -3,3 +3,4 @@ flask
 cryptography
 attrs
 requests
+nox
