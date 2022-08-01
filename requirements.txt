@@ -1,6 +1,5 @@
 google-auth
 flask
 cryptography
-attrs
 requests
 nox

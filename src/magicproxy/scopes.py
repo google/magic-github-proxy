@@ -15,16 +15,34 @@
 import re
 from typing import List
 
+from magicproxy.config import SCOPES
+from magicproxy.types import Scope
 
-def validate_request(method: str, path: str, scopes: List[str]) -> bool:
+
+def is_scope_valid(method, path, scope):
+    if method != scope.method and scope.method != "*":
+        return False
+
+    if not path.startswith("/"):
+        path = f"/{path}"
+
+    if re.match(scope.path, path, re.I):
+        return True
+
+
+def validate_request(
+    method: str, path: str, scopes: List[str] = None, allowed: List[str] = None
+) -> bool:
     """Basic scope validation routine.
 
     Args:
         method: The HTTP method.
         path: The request path.
-        scopes: The list of allowed scopes.
+        scopes: The list of allowed named scopes.
+        allowed: The list of allowed requests.
 
-    The scope must be in the format:
+    The named scope must be configured in the proxy
+    Or allowed passed through a METHOD path string like this:
 
         METHOD path
 
@@ -33,20 +51,25 @@ def validate_request(method: str, path: str, scopes: List[str]) -> bool:
         GET /user
         POST /repos/+?/+?/issues/+?/labels
 
-    Would allow getting the user info and updating labels on issues.
+    Would allow getting the user info and updating labels on issues on a GitHub repo
     """
-    validated = False
-    for scope in scopes:
-        allowed_method, allowed_path = scope.split(" ", 1)
+    if allowed is None:
+        allowed = []
 
-        if method != allowed_method and allowed_method != "*":
-            continue
+    if scopes is None:
+        scopes = []
 
-        if not path.startswith("/"):
-            path = f"/{path}"
+    for scope_key in scopes:
+        scope_list: List[Scope] = SCOPES[scope_key]
+        for scope in scope_list:
+            if is_scope_valid(method, path, scope):
+                return True
 
-        if re.match(allowed_path, path, re.I):
-            validated = True
-            break
+    for allowed_item in allowed:
+        allowed_method, allowed_path = allowed_item.split(" ", 1)
+        if is_scope_valid(
+            method, path, Scope(method=allowed_method, path=allowed_path)
+        ):
+            return True
 
-    return validated
+    return False

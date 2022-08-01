@@ -17,17 +17,18 @@ from urllib.parse import urlparse
 
 import nox
 
-from magicproxy.config import PRIVATE_KEY_LOCATION, PUBLIC_KEY_LOCATION
+from magicproxy.config import PRIVATE_KEY_LOCATION, PUBLIC_KEY_LOCATION, PUBLIC_ACCESS
 
 
 @nox.session(py=False)
 def create_token(session):
     import requests
 
-    if 'PUBLICLY_ACCESSIBLE' not in os.environ:
-        url = input("Enter the URL for your API (https://example.com): ")
-    else:
-        url = os.environ['PUBLICLY_ACCESSIBLE']
+    url = (
+        PUBLIC_ACCESS
+        if PUBLIC_ACCESS
+        else input("Enter the URL for your proxy (https://example.com): ")
+    )
     token = input("Enter your API Token: ")
     scopes = input("Enter a comma-separate list of scopes: ")
 
@@ -54,10 +55,11 @@ def generate_keys(session):
     os.makedirs(os.path.dirname(PRIVATE_KEY_LOCATION), exist_ok=True)
     os.makedirs(os.path.dirname(PUBLIC_KEY_LOCATION), exist_ok=True)
 
-    if 'PUBLICLY_ACCESSIBLE' not in os.environ:
-        url = input("Enter the URL for your API (https://example.com): ")
-    else:
-        url = os.environ['PUBLICLY_ACCESSIBLE']
+    url = (
+        PUBLIC_ACCESS
+        if PUBLIC_ACCESS
+        else input("Enter the URL for your proxy (https://example.com): ")
+    )
 
     hostname = urlparse(url).hostname
 
@@ -73,7 +75,13 @@ def generate_keys(session):
     )
 
     session.run(
-        openssl, "rsa", "-pubout", "-in", PRIVATE_KEY_LOCATION, "-out", PUBLIC_KEY_LOCATION
+        openssl,
+        "rsa",
+        "-pubout",
+        "-in",
+        PRIVATE_KEY_LOCATION,
+        "-out",
+        PUBLIC_KEY_LOCATION,
     )
 
     session.run(
@@ -101,7 +109,7 @@ def blacken(session):
 
 @nox.session(python="3.8")
 def lint(session):
-    session.install("mypy", "flake8", "black")
+    session.install("mypy", "flake8", "black", "types-requests")
     session.run("pip", "install", "-e", ".")
     session.run("black", "--check", "src/magicproxy", "tests")
     session.run("flake8", "src/magicproxy", "tests")

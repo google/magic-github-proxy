@@ -11,38 +11,63 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Tuple
+from typing import Tuple, Set
 
 import flask
 import requests
 
 import magicproxy
-from magicproxy.config import API_ROOT
-from magicproxy.headers import clean_request_headers, clean_response_headers
+import magicproxy.types
+from .config import API_ROOT, SCOPES
+from .headers import clean_request_headers, clean_response_headers
 from . import magictoken
 from . import scopes
 from . import queries
 
 app = flask.Flask(__name__)
 
-query_params_to_clean = set()
+query_params_to_clean: Set[str] = set()
 
-custom_request_headers_to_clean = set()
+custom_request_headers_to_clean: Set[str] = set()
 
 
 @app.route("/__magictoken", methods=["POST", "GET"])
 def create_magic_token():
-    if flask.request.method == 'GET':
+    if flask.request.method == "GET":
         return "magic API proxy for " + API_ROOT + " version " + magicproxy.__version__
     params = flask.request.json
 
     if not params:
         return "Request must be json.", 400
 
-    if not isinstance(params.get("scopes"), list):
-        return "scopes must be a list", 400
+    if "scopes" in params and "allowed" in params:
+        return (
+            "allowed (spelling out the allowed requests)"
+            "OR scopes (naming a scope configured on the proxy, not both",
+            400,
+        )
 
-    token = magictoken.create(keys, params["token"], params["scopes"])
+    if "scopes" in params:
+        if not isinstance(params.get("scopes"), list):
+            return "scopes must be a list", 400
+        params_scopes = params.get("scopes", [])
+        if not all(isinstance(r, str) for r in params_scopes):
+            return "scopes must be a list of strings", 400
+        if not all(r in SCOPES for r in params_scopes):
+            return (
+                f"scopes must be configured on the proxy (valid: {' '.join(SCOPES)})",
+                400,
+            )
+
+    elif "allowed" in params:
+        if not isinstance(params.get("allowed"), list):
+            return "allowed must be a list of ", 400
+        if not all(isinstance(r, str) for r in params.get("allowed", [])):
+            return "allowed must be a list of strings", 400
+
+    token = magictoken.create(
+        keys, params["token"], params.get("scopes"), params.get("allowed")
+    )
 
     return token, 200, {"Content-Type": "application/jwt"}
 
@@ -58,7 +83,7 @@ def _proxy_request(
         clean_headers.update(headers)
 
     print(
-        f"Proxying to {request.method} {url}\nHeaders: {clean_headers}\nQuery: {request.args}\nContent: {request.data}"
+        f"Proxying to {request.method} {url}\nHeaders: {clean_headers}\nQuery: {request.args}\nContent: {request.data!r}"
     )
 
     # Make the GitHub request
@@ -89,7 +114,9 @@ def proxy_api(path):
     token_info = magictoken.decode(keys, auth_token)
 
     # Validate scopes against URL and method.
-    if not scopes.validate_request(flask.request.method, path, token_info.scopes):
+    if not scopes.validate_request(
+        flask.request.method, path, token_info.scopes, token_info.allowed
+    ):
         return (
             f"Disallowed by API proxy. Allowed scopes: {', '.join(token_info.scopes)}",
             401,

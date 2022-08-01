@@ -15,20 +15,17 @@
 import base64
 import calendar
 import datetime
-import os
-from typing import List
 
-import attr
+import google.auth.crypt
+import google.auth.jwt
 from cryptography import x509
 from cryptography.hazmat import backends
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric import padding
-import google.auth.crypt
-import google.auth.jwt
 
 from magicproxy.config import PRIVATE_KEY_LOCATION, PUBLIC_KEY_LOCATION
+from magicproxy.types import DecodeResult, _Keys
 
 VALIDITY_PERIOD = 365 * 5  # 5 years.
 
@@ -57,14 +54,7 @@ def _decrypt(key, cipher_text: bytes) -> bytes:
     )
 
 
-@attr.s(slots=True, auto_attribs=True)
-class Keys:
-    private_key: rsa.RSAPrivateKey = None
-    private_key_signer: google.auth.crypt.RSASigner = None
-    public_key: rsa.RSAPublicKey = None
-    certificate: x509.Certificate = None
-    certificate_pem: str = None
-
+class Keys(_Keys):
     @classmethod
     def from_files(cls, private_key_file, certificate_file):
         with open(private_key_file, "rb") as fh:
@@ -95,7 +85,7 @@ class Keys:
         return Keys.from_files(PRIVATE_KEY_LOCATION, PUBLIC_KEY_LOCATION)
 
 
-def create(keys: Keys, token, scopes) -> str:
+def create(keys: _Keys, token, scopes=None, allowed=None) -> str:
     # NOTE: This is the *public key* that we use to encrypt this token. It's
     # *extremely* important that the public key is used here, as we want only
     # our *private key* to be able to decrypt this value.
@@ -109,25 +99,26 @@ def create(keys: Keys, token, scopes) -> str:
         "iat": _datetime_to_secs(issued_at),
         "exp": _datetime_to_secs(expires_at),
         "token": encoded_api_token,
-        "scopes": scopes,
     }
+
+    if allowed:
+        claims["allowed"] = allowed
+
+    if scopes:
+        claims["scopes"] = scopes
 
     jwt = google.auth.jwt.encode(keys.private_key_signer, claims)
 
     return jwt.decode("utf-8")
 
 
-@attr.s(slots=True, auto_attribs=True)
-class DecodeResult:
-    token: str
-    scopes: List[str]
-
-
 def decode(keys, token) -> DecodeResult:
-    claims = google.auth.jwt.decode(token, verify=True, certs=[keys.certificate_pem])
+    claims = dict(
+        google.auth.jwt.decode(token, verify=True, certs=[keys.certificate_pem])
+    )
 
     decoded_token = base64.b64decode(claims["token"])
     decrypted_token = _decrypt(keys.private_key, decoded_token).decode("utf-8")
     claims["token"] = decrypted_token
 
-    return DecodeResult(claims["token"], claims["scopes"])
+    return DecodeResult(claims["token"], claims.get("scopes"), claims.get("allowed"))

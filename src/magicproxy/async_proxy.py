@@ -11,21 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from typing import Set
 
 import aiohttp
 import aiohttp.web
 
-from magicproxy.config import API_ROOT
+from magicproxy.magictoken import Keys
+from .config import API_ROOT, SCOPES
+from .headers import clean_request_headers, clean_response_headers
 from . import magictoken
 from . import scopes
-from . import headers
 from . import queries
-
 
 routes = aiohttp.web.RouteTableDef()
 
-query_params_to_clean = set()
-custom_request_headers_to_clean = set()
+query_params_to_clean: Set[str] = set()
+custom_request_headers_to_clean: Set[str] = set()
 
 
 @routes.post("/__magictoken")
@@ -33,18 +34,43 @@ async def create_magic_token(request):
     params = await request.json()
 
     if not params:
-        raise aiohttp.web.HTTPInvalidRequest("Request must be json.")
+        raise aiohttp.web.HTTPBadRequest(body="Request must be json.")
 
     if not isinstance(params.get("scopes"), list):
-        raise aiohttp.web.HTTPInvalidRequest("Scopes must be a list.")
+        raise aiohttp.web.HTTPBadRequest(body="Scopes must be a list.")
 
-    token = magictoken.create(keys, params["token"], params["scopes"])
+    if "scopes" in params and "allowed" in params:
+        raise aiohttp.web.HTTPBadRequest(
+            body="allowed (spelling out the allowed requests)"
+            "OR scopes (naming a scope configured on the proxy, not both"
+        )
+
+    if "scopes" in params:
+        if not isinstance(params.get("scopes"), list):
+            raise aiohttp.web.HTTPBadRequest(body="scopes must be a list")
+        params_scopes = params.get("scopes", [])
+        if not all(isinstance(r, str) for r in params_scopes):
+            raise aiohttp.web.HTTPBadRequest(body="scopes must be a list of strings")
+        if not all(r in SCOPES for r in params_scopes):
+            raise aiohttp.web.HTTPBadRequest(
+                body=f"scopes must be configured on the proxy (valid: {' '.join(SCOPES)})"
+            )
+
+    elif "allowed" in params:
+        if not isinstance(params.get("allowed"), list):
+            raise aiohttp.web.HTTPBadRequest(body="allowed must be a list of ")
+        if not all(isinstance(r, str) for r in params.get("allowed", [])):
+            raise aiohttp.web.HTTPBadRequest(body="allowed must be a list of strings")
+
+    token = magictoken.create(
+        keys, params["token"], params.get("scopes"), params.get("allowed")
+    )
 
     return aiohttp.web.Response(body=token, headers={"Content-Type": "application/jwt"})
 
 
 async def _proxy_request(request, url, headers=None, **kwargs):
-    clean_headers = headers.clean_request_headers(
+    clean_headers = clean_request_headers(
         request.headers, custom_request_headers_to_clean
     )
 
@@ -63,7 +89,7 @@ async def _proxy_request(request, url, headers=None, **kwargs):
             **kwargs,
         )
         async with proxied_request as proxied_response:
-            response_headers = headers.clean_response_headers(proxied_response.headers)
+            response_headers = clean_response_headers(proxied_response.headers)
 
             response = aiohttp.web.StreamResponse(
                 status=proxied_response.status, headers=response_headers
@@ -93,9 +119,11 @@ async def proxy_api(request):
     token_info = magictoken.decode(keys, auth_token)
 
     # Validate scopes againt URL and method.
-    if not scopes.validate_request(request.method, request.path, token_info.scopes):
+    if not scopes.validate_request(
+        request.method, request.path, token_info.scopes, token_info.allowed
+    ):
         raise aiohttp.web.HTTPForbidden(
-            f"Disallowed by API proxy. Allowed scopes: {', '.join(token_info.scopes)}"
+            body=f"Disallowed by API proxy. Allowed scopes: {', '.join(token_info.scopes)}"
         )
 
     path = queries.clean_path_queries(query_params_to_clean, path)
@@ -109,7 +137,7 @@ async def proxy_api(request):
 
 async def build_app(argv):
     global keys
-    keys = magictoken.Keys.from_env()
+    keys = Keys.from_env()
 
     app = aiohttp.web.Application()
     app.add_routes(routes)

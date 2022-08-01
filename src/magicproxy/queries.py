@@ -22,7 +22,7 @@ def clean_path_queries(query_params_to_clean, path) -> str:
         cln = [q for q in queries if q[0] not in query_params_to_clean]
         return urlunparse(
             (
-                parts.scheme,
+                str(parts.scheme),
                 parts.netloc,
                 parts.path,
                 parts.params,

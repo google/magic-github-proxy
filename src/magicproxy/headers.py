@@ -13,11 +13,13 @@
 # limitations under the License.
 
 
-DEFAULT_REMOVED_REQUEST_HEADERS = set(["Host", "Connection", "Authorization"])
+DEFAULT_REMOVED_REQUEST_HEADERS = {"Host", "Connection", "Authorization"}
 
-DEFAULT_REMOVED_RESPONSE_HEADERS = set(
-    ["Content-Length", "Content-Encoding", "Transfer-Encoding"]
-)
+DEFAULT_REMOVED_RESPONSE_HEADERS = {
+    "Content-Length",
+    "Content-Encoding",
+    "Transfer-Encoding",
+}
 
 
 def clean_request_headers(headers, custom_clean_headers):

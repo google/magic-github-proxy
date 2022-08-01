@@ -25,17 +25,17 @@ KEYS = magictoken.Keys.from_files(
 
 
 def test_create_and_decode():
-    github_token = "this is a token"
+    api_token = "this is a token"
     scopes = ["a", "b", "c"]
 
-    result = magictoken.create(KEYS, github_token, scopes)
+    result = magictoken.create(KEYS, api_token, scopes)
 
-    # Make sure that the github token does not appear in plaintext
-    assert github_token not in result
+    # Make sure that the api token does not appear in plaintext
+    assert api_token not in result
 
     decoded = magictoken.decode(KEYS, result)
 
-    assert decoded.token == github_token
+    assert decoded.token == api_token
     assert scopes == scopes
 
 
