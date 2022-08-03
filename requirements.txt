@@ -3,3 +3,4 @@ flask
 cryptography
 requests
 nox
+aiohttp

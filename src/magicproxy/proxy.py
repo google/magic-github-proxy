@@ -131,11 +131,7 @@ def proxy_api(path):
     )
 
 
-def run_app():
+def run_app(host, port):
     global keys
     keys = magictoken.Keys.from_env()
-    app.run()
-
-
-if __name__ == "__main__":
-    run_app()
+    app.run(host=host, port=port)

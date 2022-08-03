@@ -16,6 +16,7 @@ from typing import Set
 import aiohttp
 import aiohttp.web
 
+import magicproxy
 from magicproxy.magictoken import Keys
 from .config import API_ROOT, SCOPES
 from .headers import clean_request_headers, clean_response_headers
@@ -27,6 +28,11 @@ routes = aiohttp.web.RouteTableDef()
 
 query_params_to_clean: Set[str] = set()
 custom_request_headers_to_clean: Set[str] = set()
+
+
+@routes.get("/__magictoken")
+async def magic_token_version(request):
+    return "magic API proxy for " + API_ROOT + " version " + magicproxy.__version__
 
 
 @routes.post("/__magictoken")
@@ -142,7 +148,3 @@ async def build_app(argv):
     app = aiohttp.web.Application()
     app.add_routes(routes)
     return app
-
-
-if __name__ == "__main__":
-    aiohttp.web.run_app(build_app([]))

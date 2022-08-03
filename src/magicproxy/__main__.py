@@ -11,8 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import argparse
 
-from magicproxy import proxy
+import aiohttp.web
+
+from magicproxy import proxy, async_proxy
+
+
+parser = argparse.ArgumentParser(description="magicproxy server")
+parser.add_argument('--async', action='store_true', dest='run_async', help="run async using aiohttp (single process)")
+parser.add_argument('--port', type=int, default=5000)
+parser.add_argument('--host', type=str, default='127.0.0.1')
+
 
 if __name__ == "__main__":
-    proxy.run_app()
+    args = parser.parse_args()
+    if args.run_async:
+        aiohttp.web.run_app(async_proxy.build_app([]), host=args.host, port=args.port)
+    else:
+        proxy.run_app(host=args.host, port=args.port)

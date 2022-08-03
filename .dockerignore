@@ -22,3 +22,10 @@ pip-delete-this-directory.txt
 coverage.xml
 *,cover
 *.log
+**/__pycache__/
+**/*.egg-info/
+.nox
+.mypy_cache
+.idea
+.pytest_cache
+config.json
