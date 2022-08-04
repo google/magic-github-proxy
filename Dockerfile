@@ -10,6 +10,6 @@ RUN pip install .
 
 FROM python:3.8
 COPY --from=builder /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+ENV PATH="/opt/venv/bin:$PATH" PYTHONUNBUFFERED=1
 CMD ["python3", "-m", "magicproxy"]
 
