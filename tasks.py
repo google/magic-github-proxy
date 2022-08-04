@@ -1,4 +1,4 @@
-# Copyright 2018 Google LLC
+# Copyright 2018 Google LLC and 2022 Matthieu Berthomé
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,17 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import sys
+
+from invoke import task
 
 import os
 from urllib.parse import urlparse
 
-import nox
-
 from magicproxy.config import PRIVATE_KEY_LOCATION, PUBLIC_KEY_LOCATION, PUBLIC_ACCESS
 
 
-@nox.session(py=False)
-def create_token(session):
+@task
+def create_token(c):
     import requests
 
     url = (
@@ -43,8 +44,8 @@ def create_token(session):
     print(resp.text)
 
 
-@nox.session(py=False)
-def generate_keys(session):
+@task
+def generate_keys(c):
     # Preferentially use Homebrew OpenSSL, as MacOS version is horrifically out
     # of date.
     if os.path.exists("/usr/local/opt/openssl/bin/openssl"):
@@ -61,9 +62,12 @@ def generate_keys(session):
         else input("Enter the URL for your proxy (https://example.com): ")
     )
 
-    hostname = urlparse(url).hostname
+    parsed = urlparse(url)
+    if not parsed.hostname:
+        raise ValueError("need an url")
+    hostname = str(parsed.hostname)
 
-    session.run(
+    c.run(
         openssl,
         "genpkey",
         "-algorithm",
@@ -74,7 +78,7 @@ def generate_keys(session):
         "rsa_keygen_bits:2048",
     )
 
-    session.run(
+    c.run(
         openssl,
         "rsa",
         "-pubout",
@@ -84,7 +88,7 @@ def generate_keys(session):
         PUBLIC_KEY_LOCATION,
     )
 
-    session.run(
+    c.run(
         openssl,
         "req",
         "-batch",
@@ -101,25 +105,22 @@ def generate_keys(session):
     )
 
 
-@nox.session(python="3.8")
-def blacken(session):
-    session.install("black")
-    session.run("black", "src/magicproxy", "tests", "setup.py", "noxfile.py")
+@task
+def blacken(c):
+    c.run("black src/magicproxy tests setup.py tasks.py")
 
 
-@nox.session(python="3.8")
-def lint(session):
-    session.install("mypy", "flake8", "black", "types-requests")
-    session.run("pip", "install", "-e", ".")
-    session.run("black", "--check", "src/magicproxy", "tests")
-    session.run("flake8", "src/magicproxy", "tests")
-    session.run(
-        "mypy", "--no-strict-optional", "--ignore-missing-imports", "src/magicproxy"
-    )
+@task
+def lint(c):
+    c.run("flake8 src/magicproxy tests")
+    c.run("mypy --no-strict-optional --ignore-missing-imports src/magicproxy")
 
 
-@nox.session(python="3.8")
-def test(session):
-    session.install("pytest")
-    session.run("pip", "install", "-e", ".")
-    session.run("pytest", "tests", *session.posargs)
+@task
+def test(c):
+    c.run("pip install -e .")
+    args = tuple()
+    if "--" in sys.argv:
+        args = sys.argv[sys.argv.index("--") + 1 :]
+
+    c.run("pytest tests " + " ".join(args))

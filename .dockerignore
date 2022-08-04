@@ -24,7 +24,6 @@ coverage.xml
 *.log
 **/__pycache__/
 **/*.egg-info/
-.nox
 .mypy_cache
 .idea
 .pytest_cache

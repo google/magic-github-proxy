@@ -2,5 +2,4 @@ google-auth
 flask
 cryptography
 requests
-nox
 aiohttp

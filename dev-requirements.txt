@@ -1,0 +1,8 @@
+pytest
+redis
+black
+mypy
+flake8
+black
+types-requests
+invoke
