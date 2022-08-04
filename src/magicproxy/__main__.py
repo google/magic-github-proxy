@@ -15,16 +15,25 @@ import argparse
 
 import aiohttp.web
 
-from magicproxy import proxy, async_proxy
+import logging
 
+logger = logging.getLogger()
+logging.basicConfig(level=logging.DEBUG, force=True)
 
 parser = argparse.ArgumentParser(description="magicproxy server")
-parser.add_argument('--async', action='store_true', dest='run_async', help="run async using aiohttp (single process)")
-parser.add_argument('--port', type=int, default=5000)
-parser.add_argument('--host', type=str, default='127.0.0.1')
+parser.add_argument(
+    "--async",
+    action="store_true",
+    dest="run_async",
+    help="run async using aiohttp (single process)",
+)
+parser.add_argument("--port", type=int, default=5000)
+parser.add_argument("--host", type=str, default="127.0.0.1")
 
 
 if __name__ == "__main__":
+    from magicproxy import proxy, async_proxy
+
     args = parser.parse_args()
     if args.run_async:
         aiohttp.web.run_app(async_proxy.build_app([]), host=args.host, port=args.port)

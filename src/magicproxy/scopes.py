@@ -11,15 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import logging
 import re
-from typing import List
+import types
+from typing import List, Union
 
 from magicproxy.config import SCOPES
 from magicproxy.types import Scope
 
+logger = logging.getLogger(__name__)
 
-def is_scope_valid(method, path, scope):
+
+def is_request_allowed(scope: Scope, method, path):
+    logger.debug(f"validating request {method} {path} on scope {scope}")
+
     if method != scope.method and scope.method != "*":
         return False
 
@@ -62,13 +67,13 @@ def validate_request(
     for scope_key in scopes:
         scope_list: List[Scope] = SCOPES[scope_key]
         for scope in scope_list:
-            if is_scope_valid(method, path, scope):
+            if is_request_allowed(scope, method, path):
                 return True
 
     for allowed_item in allowed:
         allowed_method, allowed_path = allowed_item.split(" ", 1)
-        if is_scope_valid(
-            method, path, Scope(method=allowed_method, path=allowed_path)
+        if is_request_allowed(
+            Scope(method=allowed_method, path=allowed_path), method, path
         ):
             return True
 

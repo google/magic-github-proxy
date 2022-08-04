@@ -1,21 +1,21 @@
 from magicproxy.config import SCOPES
-from magicproxy.scopes import is_scope_valid, validate_request
+from magicproxy.scopes import is_request_allowed, validate_request
 from magicproxy.types import Scope
 
 
 def test_valid_scopes():
-    assert is_scope_valid("GET", "/this", Scope(method="GET", path="/this"))
-    assert is_scope_valid(
-        "GET", "/subpath/works", Scope(method="GET", path="/subpath/*")
+    assert is_request_allowed(Scope(method="GET", path="/this"), "GET", "/this")
+    assert is_request_allowed(
+        Scope(method="GET", path="/subpath/*"), "GET", "/subpath/works"
     )
-    assert is_scope_valid(
-        "GET", "/subpath/works/also/that/way", Scope(method="GET", path="/subpath*")
+    assert is_request_allowed(
+        Scope(method="GET", path="/subpath*"), "GET", "/subpath/works/also/that/way"
     )
-    assert is_scope_valid("GET", "this", Scope(method="GET", path="/this*"))
+    assert is_request_allowed(Scope(method="GET", path="/this*"), "GET", "this")
 
-    assert not is_scope_valid("GET", "/that", Scope(method="GET", path="/this"))
-    assert not is_scope_valid(
-        "PUT", "/different/method/fails", Scope(method="GET", path="/subpath*")
+    assert not is_request_allowed(Scope(method="GET", path="/this"), "GET", "/that")
+    assert not is_request_allowed(
+        Scope(method="GET", path="/subpath*"), "PUT", "/different/method/fails"
     )
 
 
