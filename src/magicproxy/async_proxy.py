@@ -108,7 +108,7 @@ async def _proxy_request(request, url, headers=None, **kwargs):
 
             await response.write_eof()
 
-            return response
+            return data, proxied_response.status, proxied_response.headers
 
 
 @routes.route("*", "/{path:.*}")
@@ -134,11 +134,17 @@ async def proxy_api(request):
 
     path = queries.clean_path_queries(query_params_to_clean, path)
 
-    return await _proxy_request(
+    response = await _proxy_request(
         request=request,
         url=f"{API_ROOT}/{path}",
         headers={"Authorization": f"Bearer {token_info.token}"},
     )
+
+    try:
+        scopes.response_callback(*response, token_info.scopes)
+    except Exception as e:
+        logger.error(e)
+    return response
 
 
 async def build_app(argv):

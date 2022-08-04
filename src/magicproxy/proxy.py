@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import logging
 from typing import Tuple, Set
 
 import flask
@@ -23,6 +24,8 @@ from .headers import clean_request_headers, clean_response_headers
 from . import magictoken
 from . import scopes
 from . import queries
+
+logger = logging.getLogger(__name__)
 
 app = flask.Flask(__name__)
 
@@ -115,7 +118,7 @@ def proxy_api(path):
 
     # Validate scopes against URL and method.
     if not scopes.validate_request(
-        flask.request.method, path, token_info.scopes, token_info.allowed
+        flask.request.method, f"/{path}", token_info.scopes, token_info.allowed
     ):
         return (
             f"Disallowed by API proxy. Allowed scopes: {', '.join(token_info.scopes)}",
@@ -124,11 +127,17 @@ def proxy_api(path):
 
     path = queries.clean_path_queries(query_params_to_clean, path)
 
-    return _proxy_request(
+    response = _proxy_request(
         request=flask.request,
         url=f"{API_ROOT}/{path}",
         headers={"Authorization": f"Bearer {token_info.token}"},
     )
+
+    try:
+        scopes.response_callback(*response, token_info.scopes)
+    except Exception as e:
+        logger.error(e)
+    return response
 
 
 def run_app(host, port):

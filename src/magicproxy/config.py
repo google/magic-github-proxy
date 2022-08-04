@@ -1,8 +1,13 @@
 import json
+import logging
 import os
 from collections.abc import Mapping
+from typing import Union
 
+from magicproxy.plugins import load_plugins
 from magicproxy.types import Scope
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_API_ROOT = "https://api.github.com"
 DEFAULT_PRIVATE_KEY_LOCATION = "keys/private.pem"
@@ -22,6 +27,8 @@ if CONFIG_FILE is not None:
     except ValueError:
         raise RuntimeError("config file should be a valid JSON file")
 
+logger.debug("config %s", config)
+PLUGINS_LOCATION = config.get("plugins_location")
 
 API_ROOT = os.environ.get("API_ROOT", config.get("api_root", DEFAULT_API_ROOT))
 PRIVATE_KEY_LOCATION = os.environ.get(
@@ -35,20 +42,33 @@ PUBLIC_KEY_LOCATION = os.environ.get(
 PUBLIC_ACCESS = os.environ.get("PUBLIC_ACCESS", config.get("public_access"))
 
 SCOPES = config.get("scopes", {})
+
+
+def parse_scope(element: Union[str, Mapping]) -> Scope:
+    logging.debug("parsing scope from %s", element)
+    if isinstance(element, str):
+        try:
+            method, path = element.split(" ", 1)
+            return Scope(method=method, path=path)
+        except ValueError as e:
+            raise ValueError('a scope string should be a "METHOD path_regex"') from e
+    elif isinstance(element, Mapping):
+        if "method" in element and "path" in element:
+            return Scope(method=element["method"], path=element["path"])
+        else:
+            raise ValueError(
+                "a scope mapping should be a mapping with method, path keys"
+            )
+
+
 for scope_key in SCOPES:
     scope_elements = []
-    for element in SCOPES[scope_key]:
-        if isinstance(element, str):
-            method, path = element.split(" ", 1)
-            scope_elements.append(Scope(method=method, path=path))
-        elif isinstance(element, Mapping):
-            if "method" in element and "path" in element:
-                scope_elements.append(
-                    Scope(method=element["method"], path=element["path"])
-                )
-            else:
-                raise RuntimeError(
-                    "a scope element should be a mapping with method and path key"
-                )
-
+    for scope_element in SCOPES[scope_key]:
+        scope_elements.append(parse_scope(scope_element))
     SCOPES[scope_key] = scope_elements
+
+logger.debug("PLUGINS_LOCATION %s", PLUGINS_LOCATION)
+if PLUGINS_LOCATION:
+    SCOPES.update(**load_plugins(PLUGINS_LOCATION))
+
+logger.debug("SCOPES %s", SCOPES)
