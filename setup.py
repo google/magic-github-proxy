@@ -26,7 +26,7 @@ setup(
     description="A stateless API proxy",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/rienafairefr/secure-api-proxy",
+    url="https://github.com/rienafairefr/magic-api-proxy",
     author="adapted from Alethea Katherine Flowers",
     author_email="matthieu@mmea.fr",
     classifiers=[
@@ -42,7 +42,7 @@ setup(
     install_requires=["google-auth", "flask", "cryptography", "attrs", "requests"],
     python_requires=">=3.6",
     project_urls={
-        "Bug Reports": "https://github.com/rienafairefr/secure-api-proxy/issues",
-        "Source": "https://github.com/rienafairefr/secure-api-proxy",
+        "Bug Reports": "https://github.com/rienafairefr/magic-api-proxy/issues",
+        "Source": "https://github.com/rienafairefr/magic-api-proxy",
     },
 )

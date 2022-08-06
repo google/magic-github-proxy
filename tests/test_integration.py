@@ -54,7 +54,7 @@ def api_network_integration():
             os.path.join(os.path.dirname(__file__), "data", "integration_api"),
         ]
     )
-    network = "integration-test-secure-api-proxy"
+    network = "integration-test-magic-api-proxy"
     try:
         run(["docker", "network", "create", network])
     except subprocess.CalledProcessError as e:
