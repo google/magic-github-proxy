@@ -44,15 +44,15 @@ def test_get_from_env_and_decode():
     os.environ["MAGICPROXY_PUBLIC_KEY"] = os.path.join(DATA, "public.x509.cer")
     local_keys = magictoken.Keys.from_env()
 
-    github_token = "this is a token"
+    token = "this is a token"
     scopes = ["a", "b", "c"]
 
-    result = magictoken.create(local_keys, github_token, scopes)
+    result = magictoken.create(local_keys, token, scopes)
 
     # Make sure that the github token does not appear in plaintext
-    assert github_token not in result
+    assert token not in result
 
     decoded = magictoken.decode(local_keys, result)
 
-    assert decoded.token == github_token
+    assert decoded.token == token
     assert scopes == scopes

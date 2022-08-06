@@ -1,4 +1,4 @@
-# Magic GitHub API Proxy
+# Magic API Proxy
 
 This is a *stateless* API proxy that allows creation and use of *access-limited* API tokens.
 
