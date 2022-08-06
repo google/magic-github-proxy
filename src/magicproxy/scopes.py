@@ -87,7 +87,7 @@ def validate_request(
     return False
 
 
-def response_callback(content, code, headers, scopes):
+def response_callback(content, code, headers, scopes=None):
     """Response callback, for dynamic proxies
 
     Args:
@@ -98,6 +98,9 @@ def response_callback(content, code, headers, scopes):
     Would allow the proxy to process the response of a request
     e.g. can allow a DELETE on a resource once its :id: is known in the JSON of the reponse
     """
+    if scopes is None:
+        scopes = []
+
     for scope_key in scopes:
         scope_element: Union[List[Scope], types.ModuleType] = SCOPES[scope_key]
         if isinstance(scope_element, types.ModuleType):
@@ -105,4 +108,3 @@ def response_callback(content, code, headers, scopes):
                 return scope_element.response_callback(
                     content=content, code=code, headers=headers
                 )
-    return

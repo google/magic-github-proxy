@@ -15,10 +15,8 @@ import sys
 
 from invoke import task
 
-import os
-from urllib.parse import urlparse
-
-from magicproxy.config import PRIVATE_KEY_LOCATION, PUBLIC_KEY_LOCATION, PUBLIC_ACCESS
+from magicproxy.config import PUBLIC_ACCESS
+from magicproxy.crypto import generate_keys
 
 
 @task
@@ -45,64 +43,10 @@ def create_token(c):
 
 
 @task
-def generate_keys(c):
-    # Preferentially use Homebrew OpenSSL, as MacOS version is horrifically out
-    # of date.
-    if os.path.exists("/usr/local/opt/openssl/bin/openssl"):
-        openssl = "/usr/local/opt/openssl/bin/openssl"
-    else:
-        openssl = "openssl"
-
-    os.makedirs(os.path.dirname(PRIVATE_KEY_LOCATION), exist_ok=True)
-    os.makedirs(os.path.dirname(PUBLIC_KEY_LOCATION), exist_ok=True)
-
-    url = (
-        PUBLIC_ACCESS
-        if PUBLIC_ACCESS
-        else input("Enter the URL for your proxy (https://example.com): ")
-    )
-
-    parsed = urlparse(url)
-    if not parsed.hostname:
-        raise ValueError("need an url")
-    hostname = str(parsed.hostname)
-
-    c.run(
-        openssl,
-        "genpkey",
-        "-algorithm",
-        "RSA",
-        "-out",
-        PRIVATE_KEY_LOCATION,
-        "-pkeyopt",
-        "rsa_keygen_bits:2048",
-    )
-
-    c.run(
-        openssl,
-        "rsa",
-        "-pubout",
-        "-in",
-        PRIVATE_KEY_LOCATION,
-        "-out",
-        PUBLIC_KEY_LOCATION,
-    )
-
-    c.run(
-        openssl,
-        "req",
-        "-batch",
-        "-subj",
-        "/CN=" + hostname,
-        "-new",
-        "-x509",
-        "-key",
-        PRIVATE_KEY_LOCATION,
-        "-out",
-        PUBLIC_KEY_LOCATION,
-        "-days",
-        "1825",
-    )
+def generate_keys(c, url=None):
+    if url is None and PUBLIC_ACCESS is None:
+        url = input("Enter the URL for your proxy (https://example.com): ")
+    generate_keys(url)
 
 
 @task

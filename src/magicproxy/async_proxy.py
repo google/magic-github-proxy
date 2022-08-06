@@ -11,20 +11,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import logging
 from typing import Set
 
 import aiohttp
 import aiohttp.web
 
 import magicproxy
-from magicproxy.magictoken import Keys
-from .config import API_ROOT, SCOPES
+from magicproxy.magictoken import Keys, magictoken_params_validate
+from .config import API_ROOT
 from .headers import clean_request_headers, clean_response_headers
 from . import magictoken
 from . import scopes
 from . import queries
 
 routes = aiohttp.web.RouteTableDef()
+logger = logging.getLogger(__name__)
 
 query_params_to_clean: Set[str] = set()
 custom_request_headers_to_clean: Set[str] = set()
@@ -32,41 +34,19 @@ custom_request_headers_to_clean: Set[str] = set()
 
 @routes.get("/__magictoken")
 async def magic_token_version(request):
-    return "magic API proxy for " + API_ROOT + " version " + magicproxy.__version__
+    return aiohttp.web.Response(
+        body="magic API proxy for " + API_ROOT + " version " + magicproxy.__version__
+    )
 
 
 @routes.post("/__magictoken")
 async def create_magic_token(request):
     params = await request.json()
 
-    if not params:
-        raise aiohttp.web.HTTPBadRequest(body="Request must be json.")
-
-    if not isinstance(params.get("scopes"), list):
-        raise aiohttp.web.HTTPBadRequest(body="Scopes must be a list.")
-
-    if "scopes" in params and "allowed" in params:
-        raise aiohttp.web.HTTPBadRequest(
-            body="allowed (spelling out the allowed requests)"
-            "OR scopes (naming a scope configured on the proxy, not both"
-        )
-
-    if "scopes" in params:
-        if not isinstance(params.get("scopes"), list):
-            raise aiohttp.web.HTTPBadRequest(body="scopes must be a list")
-        params_scopes = params.get("scopes", [])
-        if not all(isinstance(r, str) for r in params_scopes):
-            raise aiohttp.web.HTTPBadRequest(body="scopes must be a list of strings")
-        if not all(r in SCOPES for r in params_scopes):
-            raise aiohttp.web.HTTPBadRequest(
-                body=f"scopes must be configured on the proxy (valid: {' '.join(SCOPES)})"
-            )
-
-    elif "allowed" in params:
-        if not isinstance(params.get("allowed"), list):
-            raise aiohttp.web.HTTPBadRequest(body="allowed must be a list of ")
-        if not all(isinstance(r, str) for r in params.get("allowed", [])):
-            raise aiohttp.web.HTTPBadRequest(body="allowed must be a list of strings")
+    try:
+        magictoken_params_validate(params)
+    except ValueError as e:
+        raise aiohttp.web.HTTPBadRequest(body=str(e))
 
     token = magictoken.create(
         keys, params["token"], params.get("scopes"), params.get("allowed")
@@ -115,7 +95,9 @@ async def _proxy_request(request, url, headers=None, **kwargs):
 async def proxy_api(request):
     path = request.match_info["path"]
 
-    auth_token = request.headers["Authorization"]
+    auth_token = request.headers.get("Authorization")
+    if auth_token is None:
+        raise aiohttp.web.HTTPForbidden(body="No authorization token presented")
 
     # strip out "Bearer " if needed
     if auth_token.startswith("Bearer "):

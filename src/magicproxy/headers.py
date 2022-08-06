@@ -50,5 +50,5 @@ def clean_response_headers(headers):
     headers = dict(headers)
     for rmv in DEFAULT_REMOVED_RESPONSE_HEADERS:
         headers.pop(rmv, None)
-    headers["X-Thea-Codes-GitHub-Proxy"] = "1"
+    headers["X-Thea-Codes-GitHub-Proxy"] = "1.1"
     return headers

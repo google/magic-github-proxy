@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_API_ROOT = "https://api.github.com"
 DEFAULT_PRIVATE_KEY_LOCATION = "keys/private.pem"
-DEFAULT_PUBLIC_KEY_LOCATION = "keys/public.x509.cer"
+DEFAULT_PUBLIC_KEY_LOCATION = "keys/public.pem"
+DEFAULT_PUBLIC_CERTIFICATE_LOCATION = "keys/public.x509.cer"
 
 CONFIG_FILE = os.environ.get("CONFIG_FILE")
 
@@ -32,12 +33,16 @@ PLUGINS_LOCATION = config.get("plugins_location")
 
 API_ROOT = os.environ.get("API_ROOT", config.get("api_root", DEFAULT_API_ROOT))
 PRIVATE_KEY_LOCATION = os.environ.get(
-    "MAGICPROXY_PRIVATE_KEY",
+    "PRIVATE_KEY_LOCATION",
     config.get("private_key_location", DEFAULT_PRIVATE_KEY_LOCATION),
 )
 PUBLIC_KEY_LOCATION = os.environ.get(
-    "MAGICPROXY_PUBLIC_KEY",
+    "PUBLIC_KEY_LOCATION",
     config.get("public_key_location", DEFAULT_PUBLIC_KEY_LOCATION),
+)
+PUBLIC_CERTIFICATE_LOCATION = os.environ.get(
+    "PUBLIC_CERTIFICATE_LOCATION",
+    config.get("public_certificate_location", DEFAULT_PUBLIC_CERTIFICATE_LOCATION),
 )
 PUBLIC_ACCESS = os.environ.get("PUBLIC_ACCESS", config.get("public_access"))
 

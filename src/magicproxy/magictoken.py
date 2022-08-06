@@ -24,7 +24,8 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
-from magicproxy.config import PRIVATE_KEY_LOCATION, PUBLIC_KEY_LOCATION
+from magicproxy.config import PRIVATE_KEY_LOCATION, PUBLIC_CERTIFICATE_LOCATION, SCOPES
+from magicproxy.crypto import generate_keys
 from magicproxy.types import DecodeResult, _Keys
 
 VALIDITY_PERIOD = 365 * 5  # 5 years.
@@ -81,8 +82,11 @@ class Keys(_Keys):
 
     @classmethod
     def from_env(cls):
-
-        return Keys.from_files(PRIVATE_KEY_LOCATION, PUBLIC_KEY_LOCATION)
+        try:
+            return Keys.from_files(PRIVATE_KEY_LOCATION, PUBLIC_CERTIFICATE_LOCATION)
+        except FileNotFoundError:
+            generate_keys()
+            return Keys.from_files(PRIVATE_KEY_LOCATION, PUBLIC_CERTIFICATE_LOCATION)
 
 
 def create(keys: _Keys, token, scopes=None, allowed=None) -> str:
@@ -122,3 +126,34 @@ def decode(keys, token) -> DecodeResult:
     claims["token"] = decrypted_token
 
     return DecodeResult(claims["token"], claims.get("scopes"), claims.get("allowed"))
+
+
+def magictoken_params_validate(params: dict):
+    if not params:
+        raise ValueError("Request must be json")
+
+    if "token" not in params:
+        raise ValueError("We need a token for the API behind, in the 'token' field")
+
+    if "scopes" in params and "allowed" in params:
+        raise ValueError(
+            "allowed (spelling out the allowed requests) "
+            "OR scopes (naming a scope configured on the proxy, not both"
+        )
+
+    if "scopes" in params:
+        if not isinstance(params.get("scopes"), list):
+            raise ValueError("scopes must be a list")
+        params_scopes = params.get("scopes", [])
+        if not all(isinstance(r, str) for r in params_scopes):
+            raise ValueError("scopes must be a list of strings")
+        if not all(r in SCOPES for r in params_scopes):
+            raise ValueError(
+                f"scopes must be configured on the proxy (valid: {' '.join(SCOPES)})"
+            )
+
+    elif "allowed" in params:
+        if not isinstance(params.get("allowed"), list):
+            raise ValueError("allowed must be a list of ")
+        if not all(isinstance(r, str) for r in params.get("allowed", [])):
+            raise ValueError("allowed must be a list of strings")
