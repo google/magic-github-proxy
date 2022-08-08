@@ -14,21 +14,21 @@
 import logging
 import re
 import types
-from typing import List, Union
+from typing import List, Union, Optional
 
 from magicproxy.config import SCOPES
-from magicproxy.types import Scope
+from magicproxy.types import Permission
 
 logger = logging.getLogger(__name__)
 
 
-def is_request_allowed(scope: Scope, method, path):
-    logger.debug(f"validating request {method} {path} on scope {scope}")
+def is_request_allowed(permission: Permission, method, path):
+    logger.debug(f"validating request {method} {path} on permission {permission}")
 
-    if method != scope.method and scope.method != "*":
+    if method != permission.method and permission.method != "*":
         return False
 
-    if re.match(scope.path, path, re.I):
+    if re.match(permission.path, path, re.I):
         return True
 
 
@@ -43,10 +43,10 @@ def validate_request(
     Args:
         method: The request HTTP method.
         path: The request path.
-        scopes: The list of allowed named scopes.
+        scopes: allowed named scopes.
         allowed: The list of allowed requests.
 
-    The named scope must be configured in the proxy
+    The named scope(s) must be configured in the proxy
     Or allowed passed through a METHOD path string like this:
 
         METHOD path
@@ -68,7 +68,7 @@ def validate_request(
         path = f"/{path}"
 
     for scope_key in scopes:
-        scope_element: Union[List[Scope], types.ModuleType] = SCOPES[scope_key]
+        scope_element: Union[List[Permission], types.ModuleType] = SCOPES[scope_key]
         if isinstance(scope_element, list):
             for scope in scope_element:
                 if is_request_allowed(scope, method, path):
@@ -80,18 +80,18 @@ def validate_request(
     for allowed_item in allowed:
         allowed_method, allowed_path = allowed_item.split(" ", 1)
         if is_request_allowed(
-            Scope(method=allowed_method, path=allowed_path), method, path
+            Permission(method=allowed_method, path=allowed_path), method, path
         ):
             return True
 
     return False
 
 
-def response_callback(method, path, content, code, headers, scopes=None):
+def response_callback(method, path, content, code, headers, scopes: Optional[List[str]] =None):
     """Response callback, for dynamic proxies
 
     Args:
-        scopes: The list of allowed named scopes.
+        scopes: The allowed named scopes.
 
     The named scope must be configured in the proxy
 
@@ -104,8 +104,8 @@ def response_callback(method, path, content, code, headers, scopes=None):
     if not path.startswith("/"):
         path = f"/{path}"
 
-    for scope_key in scopes:
-        scope_element: Union[List[Scope], types.ModuleType] = SCOPES[scope_key]
+    for scope in scopes:
+        scope_element: Union[List[Permission], types.ModuleType] = SCOPES[scope]
         if isinstance(scope_element, types.ModuleType):
             if hasattr(scope_element, "response_callback"):
                 return scope_element.response_callback(

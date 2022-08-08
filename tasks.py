@@ -29,12 +29,12 @@ def create_token(c):
         else input("Enter the URL for your proxy (https://example.com): ")
     )
     token = input("Enter your API Token: ")
-    scopes = input("Enter a comma-separate list of scopes: ")
+    permissions = input("Enter a comma-separate list of permissions: ")
 
     url += "/__magictoken"
-    scopes = [x.strip() for x in scopes.split(",") if x != ""]
+    permissions = [x.strip() for x in permissions.split(",") if x != ""]
 
-    request_data = {"token": token, "scopes": scopes}
+    request_data = {"token": token, "permissions": permissions}
 
     resp = requests.post(url, json=request_data)
     resp.raise_for_status()

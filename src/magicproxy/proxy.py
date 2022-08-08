@@ -105,7 +105,7 @@ def proxy_api(path):
         flask.request.method, path, token_info.scopes, token_info.allowed
     ):
         return (
-            f"Disallowed by API proxy. Allowed scopes: {', '.join(token_info.scopes)}",
+            "Disallowed by API proxy",
             401,
         )
 

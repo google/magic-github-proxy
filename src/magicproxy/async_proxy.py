@@ -110,9 +110,7 @@ async def proxy_api(request):
     if not scopes.validate_request(
         request.method, request.path, token_info.scopes, token_info.allowed
     ):
-        raise aiohttp.web.HTTPForbidden(
-            body=f"Disallowed by API proxy. Allowed scopes: {', '.join(token_info.scopes)}"
-        )
+        raise aiohttp.web.HTTPForbidden(body="Disallowed by API proxy.")
 
     path = queries.clean_path_queries(query_params_to_clean, path)
 

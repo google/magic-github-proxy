@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 
 
 @dataclass
-class Scope:
+class Permission:
     method: str
     path: str
 
@@ -17,8 +17,8 @@ class Scope:
 @dataclass
 class DecodeResult:
     token: str
-    scopes: Optional[List[Union[str, Scope]]]
-    allowed: Optional[List[Union[str, Scope]]]
+    scopes: Optional[str]
+    allowed: Optional[List[Union[str, Permission]]]
 
 
 @dataclass

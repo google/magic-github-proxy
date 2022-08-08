@@ -108,8 +108,7 @@ def create(keys: _Keys, token, scopes=None, allowed=None) -> str:
     if allowed:
         claims["allowed"] = allowed
 
-    if scopes:
-        claims["scopes"] = scopes
+    claims["scopes"] = scopes
 
     jwt = google.auth.jwt.encode(keys.private_key_signer, claims)
 
@@ -135,22 +134,23 @@ def magictoken_params_validate(params: dict):
     if "token" not in params:
         raise ValueError("We need a token for the API behind, in the 'token' field")
 
-    if "scopes" in params and "allowed" in params:
+    if ("scope" in params or "scopes" in params) and "allowed" in params:
         raise ValueError(
             "allowed (spelling out the allowed requests) "
-            "OR scopes (naming a scope configured on the proxy, not both"
+            "OR scope/scopes (naming one or more scopes configured on the proxy), not both"
         )
 
-    if "scopes" in params:
-        if not isinstance(params.get("scopes"), list):
-            raise ValueError("scopes must be a list")
-        params_scopes = params.get("scopes", [])
-        if not all(isinstance(r, str) for r in params_scopes):
-            raise ValueError("scopes must be a list of strings")
-        if not all(r in SCOPES for r in params_scopes):
-            raise ValueError(
-                f"scopes must be configured on the proxy (valid: {' '.join(SCOPES)})"
-            )
+    if "scopes" in params or "scope" in params:
+        params_scopes = params.pop("scope", [])
+        params_scopes.extend(params.pop("scopes", []))
+        for params_scope in params_scopes:
+            if not isinstance(params_scope, str):
+                raise ValueError("scope must be a string")
+            if params_scope not in SCOPES:
+                raise ValueError(
+                    f"scope must be configured on the proxy (valid: {' '.join(SCOPES)})"
+                )
+        params["scopes"] = params_scopes
 
     elif "allowed" in params:
         if not isinstance(params.get("allowed"), list):
