@@ -1,0 +1,157 @@
+name: Python package & Docker image
+
+on:
+  push:
+    branches:
+      - '*'
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Get tags
+        run: |
+          git fetch --prune --unshallow --tags
+      - run: curl -sL https://git.io/autotag-install | sudo sh -s -- -b /usr/bin
+      - run: |
+          echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> .github-env
+          export AUTO_TAG=`autotag -n -b ${GITHUB_REF##*/}`
+          echo "AUTO_TAG=${AUTO_TAG}" >> .github-env
+          echo "AUTO_DEV_TAG=`echo ${AUTO_TAG} | sed '0,/-/s//\.dev/'`" >> .github-env
+          echo "RELEASE_TAG=${AUTO_TAG}" >> .github-env
+          cat .github-env >> $GITHUB_ENV
+      - run: cat .github-env
+      - uses: actions/upload-artifact@v3
+        with:
+          name: version-artifact
+          path: .github-env
+          retention-days: 2
+
+
+  build:
+    needs: version
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.7"]
+
+    steps:
+      - uses: actions/checkout@v3
+      - run: rm src/magicproxy/_version.py
+      - uses: actions/download-artifact@v3
+        with:
+          name: version-artifact
+      - run: |
+          set -euxo pipefail
+          export $(cat .github-env | xargs)
+          echo "__version__ = '${RELEASE_TAG}'" > src/magicproxy/_version.py
+          cat src/magicproxy/_version.py
+      -
+        name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      -
+        name: Install dependencies
+        run: |
+          pip install build
+          python -m build
+      -
+        name: Artifact python package
+        uses: actions/upload-artifact@v3
+        with:
+          name: package-artifact
+          path: dist
+          retention-days: 2
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
+
+    steps:
+      - uses: actions/checkout@v3
+      -
+        uses: actions/download-artifact@v3
+        with:
+          name: package-artifact
+          path: dist
+      -
+        name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      -
+        name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r dev-requirements.txt
+          pip install dist/*.whl
+      -
+        name: Lint with flake8
+        run: |
+          invoke lint
+      -
+        name: Test with pytest
+        run: |
+          invoke test -- --integration
+
+  publish:
+    needs:
+      - test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
+        with:
+          name: version-artifact
+      - run: cat .github-env >> $GITHUB_ENV
+      -
+        name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.8
+      - uses: actions/download-artifact@v3
+        with:
+          name: package-artifact
+          path: dist
+      -
+        name: Publish package (TestPypi)
+        uses: pypa/gh-action-pypi-publish@v1.4.2
+        with:
+          user: __token__
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          repository_url: https://test.pypi.org/legacy/
+      -
+        name: Publish package
+        uses: pypa/gh-action-pypi-publish@v1.4.2
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+      -
+        name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      -
+        name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./publish.Dockerfile
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ env.RELEASE_TAG }}
+      - run: |
+          cat .github-env >> $GITHUB_ENV
+          git tag ${{ env.RELEASE_TAG }}
+          git push origin ${{ env.RELEASE_TAG }}

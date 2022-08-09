@@ -1,0 +1,5 @@
+[tool.pytest.ini_options]
+addopts = "--strict-markers"
+markers = [
+    "integration: marks tests as integration tests, run only with --integration"
+]
