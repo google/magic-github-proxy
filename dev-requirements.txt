@@ -7,3 +7,4 @@ black
 types-requests
 invoke
 types-pyOpenSSL
+build

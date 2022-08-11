@@ -13,6 +13,7 @@ DEFAULT_API_ROOT = "https://api.github.com"
 DEFAULT_PRIVATE_KEY_LOCATION = "keys/private.pem"
 DEFAULT_PUBLIC_KEY_LOCATION = "keys/public.pem"
 DEFAULT_PUBLIC_CERTIFICATE_LOCATION = "keys/public.x509.cer"
+DEFAULT_PUBLIC_ACCESS = "http://localhost"
 
 CONFIG_FILE = os.environ.get("CONFIG_FILE")
 
@@ -44,7 +45,9 @@ PUBLIC_CERTIFICATE_LOCATION = os.environ.get(
     "PUBLIC_CERTIFICATE_LOCATION",
     config.get("public_certificate_location", DEFAULT_PUBLIC_CERTIFICATE_LOCATION),
 )
-PUBLIC_ACCESS = os.environ.get("PUBLIC_ACCESS", config.get("public_access"))
+PUBLIC_ACCESS = os.environ.get(
+    "PUBLIC_ACCESS", config.get("public_access", DEFAULT_PUBLIC_ACCESS)
+)
 
 SCOPES = config.get("scopes", {})
 

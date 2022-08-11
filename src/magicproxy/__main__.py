@@ -18,7 +18,7 @@ import aiohttp.web
 import logging
 
 logger = logging.getLogger()
-logging.basicConfig(level=logging.DEBUG, force=True)
+logging.basicConfig(level=logging.DEBUG)
 
 parser = argparse.ArgumentParser(description="magicproxy server")
 parser.add_argument(
