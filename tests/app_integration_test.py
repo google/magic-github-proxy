@@ -1,3 +1,5 @@
+import sys
+
 import flask
 
 app = flask.Flask("api")
@@ -15,4 +17,5 @@ def route():
     return "not authorized by API", 401
 
 
-app.run(host="0.0.0.0", port=5000)
+if __name__ == "__main__":
+    app.run(host=sys.argv[1], port=int(sys.argv[2]))

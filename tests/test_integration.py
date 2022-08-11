@@ -1,16 +1,26 @@
-import json
 import os
 import shlex
 import subprocess
 import sys
 import time
-from collections import namedtuple
 from socket import create_connection
 
 import pytest
 import requests
+from xprocess import ProcessStarter
 
 import magicproxy
+
+API_PORT = 50000
+API_HOST = "localhost"
+API_ROOT = f"http://{API_HOST}:{API_PORT}"
+PROXY_PORT = 50001
+PROXY_HOST = "localhost"
+PROXY_ROOT = f"http://{PROXY_HOST}:{PROXY_PORT}"
+TIMEOUT = 15
+
+print("API_PORT %s" % API_PORT)
+print("PROXY_PORT %s" % PROXY_PORT)
 
 
 def run(cmd):
@@ -22,10 +32,7 @@ def run(cmd):
     )
 
 
-API_ROOT = "http://api:5000"
-
-
-def wait_for_port(port: int, host: str = "localhost", timeout: float = 5.0):
+def wait_for_port(host: str, port: int, timeout: float = 5.0):
     start_time = time.perf_counter()
     while True:
         try:
@@ -41,113 +48,76 @@ def wait_for_port(port: int, host: str = "localhost", timeout: float = 5.0):
                 ) from ex
 
 
-Integration = namedtuple("Integration", ["proxy_port"])
+@pytest.fixture(scope="module")
+def api_integration(xprocess):
+    class ApiStarter(ProcessStarter):
+        args = [
+            sys.executable,
+            os.path.join(os.path.dirname(__file__), "app_integration_test.py"),
+            "localhost",
+            API_PORT,
+        ]
+
+        def startup_check(self):
+            try:
+                create_connection((API_HOST, API_PORT), timeout=1)
+                return True
+            except TimeoutError:
+                return False
+
+        pattern = rf"Running on {API_ROOT}"
+
+    xprocess.ensure("api", ApiStarter)
+    yield
+    xprocess.getinfo("api").terminate()
 
 
 @pytest.fixture(scope="module")
-def api_network_integration():
-    api_docker_image = run(
-        [
-            "docker",
-            "build",
-            "-q",
-            os.path.join(os.path.dirname(__file__), "data", "integration_api"),
+def integration(api_integration, xprocess, request):
+    run_async = request.param
+
+    class ProxyStarter(ProcessStarter):
+        args = [
+            sys.executable,
+            "-m",
+            "magicproxy",
+            "--host",
+            "localhost",
+            "--port",
+            PROXY_PORT,
         ]
-    )
-    network = "integration-test-magic-api-proxy"
-    try:
-        run(["docker", "network", "create", network])
-    except subprocess.CalledProcessError as e:
-        if f"{network} already exists" not in e.output.decode():
-            raise
+        if run_async:
+            args.append("--async")
+        timeout = 15
 
-    api_container = run(
-        [
-            "docker",
-            "run",
-            "-d",
-            "--rm",
-            "--network",
-            network,
-            "--network-alias",
-            "api",
-            api_docker_image,
-        ]
-    )
+        def startup_check(self):
+            try:
+                create_connection((PROXY_HOST, PROXY_PORT), timeout=1)
+                return True
+            except TimeoutError:
+                return False
 
-    subprocess.Popen(["docker", "logs", "-f", api_container], stdout=sys.stdout)
+        pattern = rf"Running on {PROXY_ROOT}"
+        env = {
+            "API_ROOT": API_ROOT,
+            "PYTHONUNBUFFERED": "1",
+            # "PUBLIC_KEY_LOCATION": tmp_path / 'public.pem',
+            # "PUBLIC_CERTIFICATE_LOCATION": tmp_path / 'public.pem',
+            # "PRIVATE_KEY_LOCATION": tmp_path / 'public.x509.cer',
+            "PUBLIC_ACCESS": PROXY_ROOT,
+        }
 
-    def cleanup():
-        print(run(["docker", "stop", api_container]))
-        print(run(["docker", "rmi", api_docker_image]))
-        print(run(["docker", "network", "remove", network]))
-
-    try:
-        yield network
-    finally:
-        cleanup()
-
-
-@pytest.fixture(scope="module")
-def integration(api_network_integration, request):
-    image_under_test = run(
-        ["docker", "build", "-q", os.path.join(os.path.dirname(__file__), "..")]
-    )
-
-    cmd = [
-        "docker",
-        "run",
-        "--rm",
-        "-d",
-        "-P",
-        "--expose",
-        "5000",
-        "-e",
-        f"API_ROOT={API_ROOT}",
-        "-e",
-        "PUBLIC_ACCESS=http://localhost:5000",
-        "--network",
-        api_network_integration,
-        "--network-alias",
-        "proxy",
-        image_under_test,
-        "python",
-        "-m",
-        "magicproxy",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "5000",
-    ]
-    if request.param:
-        cmd.append("--async")
-
-    proxy_container = run(cmd)
-
-    inspect = json.loads(run(["docker", "inspect", proxy_container]))
-    proxy_port = int(inspect[0]["NetworkSettings"]["Ports"]["5000/tcp"][0]["HostPort"])
-
-    def cleanup():
-        print(run(["docker", "logs", proxy_container]))
-        print(run(["docker", "stop", proxy_container]))
-
-    try:
-        wait_for_port(port=proxy_port, timeout=15)
-    except TimeoutError:
-        cleanup()
-
-    try:
-        yield Integration(proxy_port=proxy_port)
-    finally:
-        cleanup()
+    xprocess.ensure("proxy", ProxyStarter)
+    yield
+    xprocess.getinfo("proxy").terminate()
 
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
     "integration", [True, False], ids=["async", "sync"], indirect=True
 )
-def test_api_get___magictoken(integration: Integration):
-    response = requests.get(f"http://localhost:{integration.proxy_port}/__magictoken")
+def test_api_get___magictoken(integration):
+    response = requests.get(f"{PROXY_ROOT}/__magictoken")
     assert response.ok
     assert response.status_code == 200
 
@@ -159,9 +129,9 @@ def test_api_get___magictoken(integration: Integration):
 @pytest.mark.parametrize(
     "integration", [True, False], ids=["async", "sync"], indirect=True
 )
-def test_api_authorized(integration: Integration):
+def test_api_authorized(integration):
     response = requests.post(
-        f"http://localhost:{integration.proxy_port}/__magictoken",
+        f"{PROXY_ROOT}/__magictoken",
         json={"allowed": ["GET /.*"], "token": "fake_token"},
     )
     assert response.ok
@@ -170,7 +140,7 @@ def test_api_authorized(integration: Integration):
     proxy_token = response.text
 
     response = requests.get(
-        f"http://localhost:{integration.proxy_port}/",
+        PROXY_ROOT,
         headers={"Authorization": f"Bearer {proxy_token}"},
     )
     assert response.ok
@@ -182,9 +152,9 @@ def test_api_authorized(integration: Integration):
 @pytest.mark.parametrize(
     "integration", [True, False], ids=["async", "sync"], indirect=True
 )
-def test_api_unauthorized(integration: Integration):
+def test_api_unauthorized(integration):
     response = requests.post(
-        f"http://localhost:{integration.proxy_port}/__magictoken",
+        f"{PROXY_ROOT}/__magictoken",
         json={"allowed": ["GET /.*"], "token": "wrong_token"},
     )
     assert response.ok
@@ -193,7 +163,7 @@ def test_api_unauthorized(integration: Integration):
     proxy_token = response.text
 
     response = requests.get(
-        f"http://localhost:{integration.proxy_port}/",
+        f"{PROXY_ROOT}/",
         headers={"Authorization": f"Bearer {proxy_token}"},
     )
     assert not response.ok
