@@ -157,3 +157,8 @@ def magictoken_params_validate(params: dict):
             raise ValueError("allowed must be a list of ")
         if not all(isinstance(r, str) for r in params.get("allowed", [])):
             raise ValueError("allowed must be a list of strings")
+    else:
+        raise ValueError(
+            "need one of allowed (spelling out the allowed requests) "
+            "OR scopes (naming a scope configured on the proxy)"
+        )

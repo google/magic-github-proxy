@@ -129,6 +129,26 @@ def test_api_get___magictoken(integration):
 @pytest.mark.parametrize(
     "integration", [True, False], ids=["async", "sync"], indirect=True
 )
+def test_extra_keys(integration):
+    response = requests.post(
+        f"{PROXY_ROOT}/__magictoken",
+        json={"allowed": ["GET /.*"], "token_": "fake_token"},
+    )
+    assert not response.ok
+    assert response.status_code == 400
+
+    response = requests.post(
+        f"{PROXY_ROOT}/__magictoken",
+        json={"allowed_": ["GET /.*"], "token": "fake_token"},
+    )
+    assert not response.ok
+    assert response.status_code == 400
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "integration", [True, False], ids=["async", "sync"], indirect=True
+)
 def test_api_authorized(integration):
     response = requests.post(
         f"{PROXY_ROOT}/__magictoken",
