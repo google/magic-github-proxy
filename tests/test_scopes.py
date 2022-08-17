@@ -11,11 +11,11 @@ def test_valid_scopes():
     assert is_request_allowed(
         Scope(method="GET", path="/subpath*"), "GET", "/subpath/works/also/that/way"
     )
-    assert is_request_allowed(Scope(method="GET", path="/this*"), "GET", "this")
+    assert is_request_allowed(Scope(method="GET", path="/this.*"), "GET", "/this")
 
     assert not is_request_allowed(Scope(method="GET", path="/this"), "GET", "/that")
     assert not is_request_allowed(
-        Scope(method="GET", path="/subpath*"), "PUT", "/different/method/fails"
+        Scope(method="GET", path="/subpath.*"), "PUT", "/different/method/fails"
     )
 
 

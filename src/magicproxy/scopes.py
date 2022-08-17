@@ -28,9 +28,6 @@ def is_request_allowed(scope: Scope, method, path):
     if method != scope.method and scope.method != "*":
         return False
 
-    if not path.startswith("/"):
-        path = f"/{path}"
-
     if re.match(scope.path, path, re.I):
         return True
 
@@ -66,6 +63,9 @@ def validate_request(
 
     if scopes is None:
         scopes = []
+
+    if not path.startswith("/"):
+        path = f"/{path}"
 
     for scope_key in scopes:
         scope_element: Union[List[Scope], types.ModuleType] = SCOPES[scope_key]
