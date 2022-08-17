@@ -123,7 +123,7 @@ async def proxy_api(request):
     )
 
     try:
-        scopes.response_callback(*response, token_info.scopes)
+        scopes.response_callback(request.method, path, *response, token_info.scopes)
     except Exception as e:
         logger.error(e)
     return response

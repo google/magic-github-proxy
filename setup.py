@@ -39,7 +39,15 @@ setup(
     keywords="api github proxy",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
-    install_requires=["google-auth", "flask", "cryptography", "attrs", "requests", "aiohttp", "pyopenssl"],
+    install_requires=[
+        "google-auth",
+        "flask",
+        "cryptography",
+        "attrs",
+        "requests",
+        "aiohttp",
+        "pyopenssl",
+    ],
     python_requires=">=3.6",
     project_urls={
         "Bug Reports": "https://github.com/rienafairefr/magic-api-proxy/issues",

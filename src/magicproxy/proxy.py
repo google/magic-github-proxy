@@ -118,7 +118,7 @@ def proxy_api(path):
     )
 
     try:
-        scopes.response_callback(*response, token_info.scopes)
+        scopes.response_callback(flask.request.method, path, *response, token_info.scopes)
     except Exception as e:
         logger.error("exception in response_callback")
         logger.error(e)

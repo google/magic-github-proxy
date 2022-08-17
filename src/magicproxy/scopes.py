@@ -87,7 +87,7 @@ def validate_request(
     return False
 
 
-def response_callback(content, code, headers, scopes=None):
+def response_callback(method, path, content, code, headers, scopes=None):
     """Response callback, for dynamic proxies
 
     Args:
@@ -101,10 +101,17 @@ def response_callback(content, code, headers, scopes=None):
     if scopes is None:
         scopes = []
 
+    if not path.startswith("/"):
+        path = f"/{path}"
+
     for scope_key in scopes:
         scope_element: Union[List[Scope], types.ModuleType] = SCOPES[scope_key]
         if isinstance(scope_element, types.ModuleType):
             if hasattr(scope_element, "response_callback"):
                 return scope_element.response_callback(
-                    content=content, code=code, headers=headers
+                    method=method,
+                    path=path,
+                    content=content,
+                    code=code,
+                    headers=headers,
                 )
