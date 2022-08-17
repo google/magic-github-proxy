@@ -9,3 +9,4 @@ invoke
 types-pyOpenSSL
 build
 pytest-xprocess
+coverage

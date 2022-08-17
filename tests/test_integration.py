@@ -75,19 +75,33 @@ def api_integration(xprocess):
 @pytest.fixture(scope="module")
 def integration(api_integration, xprocess, request):
     run_async = request.param
+    run_args = [sys.executable]
+    if 'COVERAGE_RUN' in os.environ:
+        root_dir = os.path.join(os.path.dirname(__file__), '..')
+        dotcov = os.path.join(root_dir, '.coverage-parallel')
+        omitted = os.path.join(root_dir, 'tests/*')
+        run_args.extend(["-m", "coverage", "run", f"--data-file={dotcov}", '-p', f"--omit={omitted}"])
+
+    run_args.extend([
+        "-m",
+        "magicproxy",
+        "--host",
+        "localhost",
+        "--port",
+        PROXY_PORT,
+    ])
+    if run_async:
+        run_args.append("--async")
+    print(' '.join(str(e) for e in run_args))
+    run_env = {
+        "API_ROOT": API_ROOT,
+        "PYTHONUNBUFFERED": "1",
+        "PUBLIC_ACCESS": PROXY_ROOT,
+    }
 
     class ProxyStarter(ProcessStarter):
-        args = [
-            sys.executable,
-            "-m",
-            "magicproxy",
-            "--host",
-            "localhost",
-            "--port",
-            PROXY_PORT,
-        ]
-        if run_async:
-            args.append("--async")
+        args = run_args
+        env = run_env
         timeout = 15
 
         def startup_check(self):
@@ -98,14 +112,6 @@ def integration(api_integration, xprocess, request):
                 return False
 
         pattern = rf"Running on {PROXY_ROOT}"
-        env = {
-            "API_ROOT": API_ROOT,
-            "PYTHONUNBUFFERED": "1",
-            # "PUBLIC_KEY_LOCATION": tmp_path / 'public.pem',
-            # "PUBLIC_CERTIFICATE_LOCATION": tmp_path / 'public.pem',
-            # "PRIVATE_KEY_LOCATION": tmp_path / 'public.x509.cer',
-            "PUBLIC_ACCESS": PROXY_ROOT,
-        }
 
     xprocess.ensure("proxy", ProxyStarter)
     yield

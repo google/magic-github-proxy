@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import argparse
+import os
 
 import aiohttp.web
 
@@ -30,6 +31,8 @@ parser.add_argument(
 parser.add_argument("--port", type=int, default=5000)
 parser.add_argument("--host", type=str, default="127.0.0.1")
 
+print('COVERAGE_RUN')
+print(os.environ.get('COVERAGE_RUN'))
 
 if __name__ == "__main__":
     from magicproxy import proxy, async_proxy

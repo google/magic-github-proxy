@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
+import site
 import sys
 
 from invoke import task
@@ -60,11 +62,52 @@ def lint(c):
     c.run("mypy --no-strict-optional --ignore-missing-imports src/magicproxy")
 
 
+COV_LINE = "import coverage; coverage.process_startup()"
+
+
+@task
+def install_coverage_subprocess(c):
+    prefix = site.PREFIXES[0]
+    pth_file = os.path.join(prefix, 'coverage_process_start.pth')
+    if os.path.exists(pth_file):
+        if COV_LINE in open(pth_file).read():
+            print('already there')
+            return
+    with open(pth_file, 'w') as sitecustomize_file:
+        sitecustomize_file.write(COV_LINE)
+
+
+@task
+def uninstall_coverage_subprocess(c):
+    prefix = site.PREFIXES[0]
+    pth_file = os.path.join(prefix, 'coverage_process_start.pth')
+    if not os.path.exists(pth_file):
+        return print('ok, no pth_file')
+    pth_file_content = open(pth_file).read()
+    if COV_LINE not in pth_file_content:
+        return print('not installed in pth file')
+
+    os.remove(pth_file_content)
+    print('ok, pth file removed')
+
+
 @task
 def test(c):
     c.run("pip install -e .")
     args = tuple()
     if "--" in sys.argv:
-        args = sys.argv[sys.argv.index("--") + 1 :]
+        args = sys.argv[sys.argv.index("--") + 1:]
 
     c.run("pytest tests " + " ".join(args))
+
+
+@task
+def coverage(c):
+    c.run("pip install -e .")
+    args = tuple()
+    if "--" in sys.argv:
+        args = sys.argv[sys.argv.index("--") + 1:]
+
+    c.run("coverage run -m pytest tests " + " ".join(args))
+    c.run("coverage combine .coverage*")
+    c.run("coverage report")
