@@ -31,10 +31,8 @@ parser.add_argument(
 parser.add_argument("--port", type=int, default=5000)
 parser.add_argument("--host", type=str, default="127.0.0.1")
 
-print('COVERAGE_RUN')
-print(os.environ.get('COVERAGE_RUN'))
 
-if __name__ == "__main__":
+def main():
     from magicproxy import proxy, async_proxy
 
     args = parser.parse_args()
@@ -42,3 +40,7 @@ if __name__ == "__main__":
         aiohttp.web.run_app(async_proxy.build_app([]), host=args.host, port=args.port)
     else:
         proxy.run_app(host=args.host, port=args.port)
+
+
+if __name__ == "__main__":
+    main()

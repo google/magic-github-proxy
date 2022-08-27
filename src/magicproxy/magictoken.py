@@ -24,7 +24,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
-from magicproxy.config import PRIVATE_KEY_LOCATION, PUBLIC_CERTIFICATE_LOCATION, SCOPES
+from magicproxy.config import PRIVATE_KEY_LOCATION, PUBLIC_CERTIFICATE_LOCATION, SCOPES, parse_permission
 from magicproxy.crypto import generate_keys
 from magicproxy.types import DecodeResult, _Keys
 
@@ -141,7 +141,7 @@ def magictoken_params_validate(params: dict):
         )
 
     if "scopes" in params or "scope" in params:
-        params_scopes = params.pop("scope", [])
+        params_scopes = [params['scope']] if 'scope' in params else []
         params_scopes.extend(params.pop("scopes", []))
         for params_scope in params_scopes:
             if not isinstance(params_scope, str):
@@ -155,8 +155,10 @@ def magictoken_params_validate(params: dict):
     elif "allowed" in params:
         if not isinstance(params.get("allowed"), list):
             raise ValueError("allowed must be a list of ")
-        if not all(isinstance(r, str) for r in params.get("allowed", [])):
+        if not all(isinstance(r, str) for r in params["allowed"]):
             raise ValueError("allowed must be a list of strings")
+        for value in params['allowed']:
+            parse_permission(value)
     else:
         raise ValueError(
             "need one of allowed (spelling out the allowed requests) "

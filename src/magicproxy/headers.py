@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import magicproxy
 
 DEFAULT_REMOVED_REQUEST_HEADERS = {"Host", "Connection", "Authorization"}
 
@@ -50,5 +50,5 @@ def clean_response_headers(headers):
     headers = dict(headers)
     for rmv in DEFAULT_REMOVED_RESPONSE_HEADERS:
         headers.pop(rmv, None)
-    headers["X-Thea-Codes-GitHub-Proxy"] = "1.1"
+    headers["X-Magic-API-Proxy"] = magicproxy.__version__
     return headers
