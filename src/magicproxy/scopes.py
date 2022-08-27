@@ -25,6 +25,9 @@ logger = logging.getLogger(__name__)
 def is_request_allowed(permission: Permission, method, path):
     logger.debug(f"validating request {method} {path} on permission {permission}")
 
+    if not path.startswith('/'):
+        path = f'/{path}'
+
     if method != permission.method and permission.method != "*":
         return False
 
