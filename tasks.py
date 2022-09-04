@@ -106,6 +106,19 @@ def test(c):
 
 
 @task
+def test_coverage(c):
+    c.run("pip install -e .")
+    args = tuple()
+    if "--" in sys.argv:
+        args = sys.argv[sys.argv.index("--") + 1 :]
+
+    c.run("coverage erase")
+    c.run("coverage run -m pytest tests " + " ".join(args))
+    c.run("coverage combine")
+    c.run("coverage report")
+
+
+@task
 def coverage(c):
     c.run("pip install -e .")
     args = tuple()

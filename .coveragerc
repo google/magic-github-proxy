@@ -1,0 +1,4 @@
+[run]
+include = */src/*
+omit = *tests*,*examples*
+parallel = True

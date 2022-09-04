@@ -3,6 +3,7 @@ import shlex
 import subprocess
 import sys
 import time
+from random import randrange
 from socket import create_connection
 
 import pytest
@@ -11,10 +12,10 @@ from xprocess import ProcessStarter
 
 import magicproxy
 
-API_PORT = 50000
+API_PORT = randrange(50000, 55000)
 API_HOST = "localhost"
 API_ROOT = f"http://{API_HOST}:{API_PORT}"
-PROXY_PORT = 50001
+PROXY_PORT = randrange(55000, 60000)
 PROXY_HOST = "localhost"
 PROXY_ROOT = f"http://{PROXY_HOST}:{PROXY_PORT}"
 TIMEOUT = 15
@@ -76,28 +77,44 @@ def api_integration(xprocess):
 def integration(api_integration, xprocess, request):
     run_async = request.param
     run_args = [sys.executable]
-    if 'COVERAGE_RUN' in os.environ:
-        root_dir = os.path.join(os.path.dirname(__file__), '..')
-        dotcov = os.path.join(root_dir, '.coverage-parallel')
-        omitted = os.path.join(root_dir, 'tests/*')
-        run_args.extend(["-m", "coverage", "run", f"--data-file={dotcov}", '-p', f"--omit={omitted}"])
+    rcfile = None
+    if "COVERAGE_RUN" in os.environ:
+        root_dir = os.path.join(os.path.dirname(__file__), "..")
+        rcfile = os.path.join(root_dir, ".coveragerc")
+        covfile = os.path.join(root_dir, ".coverage")
+        omitted = os.path.join(root_dir, "tests/*")
+        run_args.extend(
+            [
+                "-m",
+                "coverage",
+                "run",
+                f"--rcfile={rcfile}",
+                f"--data-file={covfile}",
+                "-p",
+                f"--omit={omitted}",
+            ]
+        )
 
-    run_args.extend([
-        "-m",
-        "magicproxy",
-        "--host",
-        "localhost",
-        "--port",
-        PROXY_PORT,
-    ])
+    run_args.extend(
+        [
+            "-m",
+            "magicproxy",
+            "--host",
+            "localhost",
+            "--port",
+            PROXY_PORT,
+        ]
+    )
     if run_async:
         run_args.append("--async")
-    print(' '.join(str(e) for e in run_args))
+    print(" ".join(str(e) for e in run_args))
     run_env = {
         "API_ROOT": API_ROOT,
         "PYTHONUNBUFFERED": "1",
         "PUBLIC_ACCESS": PROXY_ROOT,
     }
+    if "COVERAGE_RUN" in os.environ:
+        run_env["COVERAGE_PROCESS_START"] = rcfile
 
     class ProxyStarter(ProcessStarter):
         args = run_args

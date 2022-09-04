@@ -77,3 +77,6 @@ target/
 config.json
 
 .github-env
+.envrc
+
+coverage.json

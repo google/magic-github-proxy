@@ -36,10 +36,8 @@ def main():
     from magicproxy import proxy, async_proxy
 
     args = parser.parse_args()
-    if args.run_async:
-        aiohttp.web.run_app(async_proxy.build_app([]), host=args.host, port=args.port)
-    else:
-        proxy.run_app(host=args.host, port=args.port)
+    module = async_proxy if args.run_async else proxy
+    module.run_app(host=args.host, port=args.port)
 
 
 if __name__ == "__main__":
