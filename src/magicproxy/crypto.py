@@ -3,30 +3,25 @@ from urllib.parse import urlparse
 
 from OpenSSL import crypto
 
-from magicproxy.config import (
-    PRIVATE_KEY_LOCATION,
-    PUBLIC_KEY_LOCATION,
-    PUBLIC_CERTIFICATE_LOCATION,
-    PUBLIC_ACCESS,
-)
+from magicproxy.config import Config
 
 
-def generate_keys(url=PUBLIC_ACCESS):
-    os.makedirs(os.path.dirname(PRIVATE_KEY_LOCATION), exist_ok=True)
-    os.makedirs(os.path.dirname(PUBLIC_KEY_LOCATION), exist_ok=True)
-    os.makedirs(os.path.dirname(PUBLIC_CERTIFICATE_LOCATION), exist_ok=True)
-    parsed = urlparse(url)
+def generate_keys(config: Config):
+    os.makedirs(os.path.dirname(config.private_key_location), exist_ok=True)
+    os.makedirs(os.path.dirname(config.public_key_location), exist_ok=True)
+    os.makedirs(os.path.dirname(config.public_certificate_location), exist_ok=True)
+    parsed = urlparse(config.public_access)
     if not parsed.hostname:
-        raise ValueError(f"url {url} does not seem to have a hostname")
+        raise ValueError(f"url {config.public_access} does not seem to have a hostname")
 
     hostname = str(parsed.hostname)
     pkey = crypto.PKey()
     pkey.generate_key(crypto.TYPE_RSA, 2048)
 
-    with open(PRIVATE_KEY_LOCATION, "wb") as private_key_file:
+    with open(config.private_key_location, "wb") as private_key_file:
         private_key_file.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, pkey))
 
-    with open(PUBLIC_KEY_LOCATION, "wb") as public_key_file:
+    with open(config.public_key_location, "wb") as public_key_file:
         public_key_file.write(crypto.dump_publickey(crypto.FILETYPE_PEM, pkey))
 
     req = crypto.X509Req()
@@ -43,7 +38,7 @@ def generate_keys(url=PUBLIC_ACCESS):
     certificate.set_pubkey(pkey)
     certificate.sign(pkey, "sha256")
 
-    with open(PUBLIC_CERTIFICATE_LOCATION, "wb") as certificate_file:
+    with open(config.public_certificate_location, "wb") as certificate_file:
         certificate_file.write(
             crypto.dump_certificate(crypto.FILETYPE_PEM, certificate)
         )

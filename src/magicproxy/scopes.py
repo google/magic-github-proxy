@@ -16,7 +16,7 @@ import re
 import types
 from typing import List, Union, Optional
 
-from magicproxy.config import SCOPES
+from magicproxy.config import Config
 from magicproxy.types import Permission
 
 logger = logging.getLogger(__name__)
@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 def is_request_allowed(permission: Permission, method, path):
     logger.debug(f"validating request {method} {path} on permission {permission}")
 
-    if not path.startswith('/'):
-        path = f'/{path}'
+    if not path.startswith("/"):
+        path = f"/{path}"
 
     if method != permission.method and permission.method != "*":
         return False
@@ -36,6 +36,7 @@ def is_request_allowed(permission: Permission, method, path):
 
 
 def validate_request(
+    config: Config,
     method: str,
     path: str,
     scopes: List[str] = None,
@@ -71,7 +72,9 @@ def validate_request(
         path = f"/{path}"
 
     for scope_key in scopes:
-        scope_element: Union[List[Permission], types.ModuleType] = SCOPES[scope_key]
+        scope_element: Union[List[Permission], types.ModuleType] = config.scopes[
+            scope_key
+        ]
         if isinstance(scope_element, list):
             for scope in scope_element:
                 if is_request_allowed(scope, method, path):
@@ -90,7 +93,9 @@ def validate_request(
     return False
 
 
-def response_callback(method, path, content, code, headers, scopes: Optional[List[str]] =None):
+def response_callback(
+    method, path, content, code, headers, scopes: Optional[List[str]] = None
+):
     """Response callback, for dynamic proxies
 
     Args:

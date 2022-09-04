@@ -24,8 +24,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
-from magicproxy.config import PRIVATE_KEY_LOCATION, PUBLIC_CERTIFICATE_LOCATION, SCOPES, parse_permission
-from magicproxy.crypto import generate_keys
+from magicproxy.config import parse_permission, Config
 from magicproxy.types import DecodeResult, _Keys
 
 VALIDITY_PERIOD = 365 * 5  # 5 years.
@@ -80,14 +79,6 @@ class Keys(_Keys):
             certificate_pem=certificate_pem,
         )
 
-    @classmethod
-    def from_env(cls):
-        try:
-            return Keys.from_files(PRIVATE_KEY_LOCATION, PUBLIC_CERTIFICATE_LOCATION)
-        except FileNotFoundError:
-            generate_keys()
-            return Keys.from_files(PRIVATE_KEY_LOCATION, PUBLIC_CERTIFICATE_LOCATION)
-
 
 def create(keys: _Keys, token, scopes=None, allowed=None) -> str:
     # NOTE: This is the *public key* that we use to encrypt this token. It's
@@ -127,7 +118,7 @@ def decode(keys, token) -> DecodeResult:
     return DecodeResult(claims["token"], claims.get("scopes"), claims.get("allowed"))
 
 
-def magictoken_params_validate(params: dict):
+def magictoken_params_validate(config: Config, params: dict):
     if not params:
         raise ValueError("Request must be json")
 
@@ -141,14 +132,14 @@ def magictoken_params_validate(params: dict):
         )
 
     if "scopes" in params or "scope" in params:
-        params_scopes = [params['scope']] if 'scope' in params else []
+        params_scopes = [params["scope"]] if "scope" in params else []
         params_scopes.extend(params.pop("scopes", []))
         for params_scope in params_scopes:
             if not isinstance(params_scope, str):
                 raise ValueError("scope must be a string")
-            if params_scope not in SCOPES:
+            if params_scope not in config.scopes:
                 raise ValueError(
-                    f"scope must be configured on the proxy (valid: {' '.join(SCOPES)})"
+                    f"scope must be configured on the proxy (valid: {' '.join(config.scopes)})"
                 )
         params["scopes"] = params_scopes
 
@@ -157,7 +148,7 @@ def magictoken_params_validate(params: dict):
             raise ValueError("allowed must be a list of ")
         if not all(isinstance(r, str) for r in params["allowed"]):
             raise ValueError("allowed must be a list of strings")
-        for value in params['allowed']:
+        for value in params["allowed"]:
             parse_permission(value)
     else:
         raise ValueError(

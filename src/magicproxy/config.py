@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import logging
 import os
@@ -9,19 +10,41 @@ from magicproxy.types import Permission
 
 logger = logging.getLogger(__name__)
 
+
 DEFAULT_API_ROOT = "https://api.github.com"
 DEFAULT_PRIVATE_KEY_LOCATION = "keys/private.pem"
 DEFAULT_PUBLIC_KEY_LOCATION = "keys/public.pem"
 DEFAULT_PUBLIC_CERTIFICATE_LOCATION = "keys/public.x509.cer"
 DEFAULT_PUBLIC_ACCESS = "http://localhost"
 
-CONFIG_FILE = os.environ.get("CONFIG_FILE")
 
-config = {}
+@dataclasses.dataclass
+class Config:
+    api_root: str = DEFAULT_API_ROOT
+    private_key_location: str = DEFAULT_PRIVATE_KEY_LOCATION
+    public_key_location: str = DEFAULT_PUBLIC_KEY_LOCATION
+    public_certificate_location: str = DEFAULT_PUBLIC_CERTIFICATE_LOCATION
+    public_access: str = DEFAULT_PUBLIC_ACCESS
+    plugins_location: str = None
+    scopes: dict = dataclasses.field(default_factory=lambda: {})
 
-if CONFIG_FILE is not None:
+
+def from_env():
+    return Config(
+        api_root=os.environ.get("API_ROOT") or DEFAULT_API_ROOT,
+        private_key_location=os.environ.get("PRIVATE_KEY_LOCATION")
+        or DEFAULT_PRIVATE_KEY_LOCATION,
+        public_key_location=os.environ.get("PUBLIC_KEY_LOCATION")
+        or DEFAULT_PUBLIC_KEY_LOCATION,
+        public_certificate_location=os.environ.get("PUBLIC_CERTIFICATE_LOCATION")
+        or DEFAULT_PUBLIC_CERTIFICATE_LOCATION,
+        public_access=os.environ.get("PUBLIC_ACCESS") or DEFAULT_PUBLIC_ACCESS,
+    )
+
+
+def from_file(config_file):
     try:
-        config_string = open(CONFIG_FILE, "r", encoding="utf-8").read()
+        config_string = open(config_file, "r", encoding="utf-8").read()
     except IOError:
         raise RuntimeError("I/O error, config file should be readable")
     try:
@@ -29,27 +52,39 @@ if CONFIG_FILE is not None:
     except ValueError:
         raise RuntimeError("config file should be a valid JSON file")
 
-logger.debug("config %s", config)
+    scopes = config.get("scopes", {})
+    for scope_key in scopes:
+        scope_elements = []
+        for scope_element in scopes[scope_key]:
+            scope_elements.append(parse_permission(scope_element))
+        scopes[scope_key] = scope_elements
+    plugins_location = config.get("plugins_location")
+    if plugins_location:
+        scopes.update(**load_plugins(plugins_location))
+    return Config(
+        api_root=config.get("api_root") or DEFAULT_API_ROOT,
+        private_key_location=config.get("private_key_location")
+        or DEFAULT_PRIVATE_KEY_LOCATION,
+        public_key_location=config.get("public_key_location")
+        or DEFAULT_PUBLIC_KEY_LOCATION,
+        public_certificate_location=config.get("public_certificate_location")
+        or DEFAULT_PUBLIC_CERTIFICATE_LOCATION,
+        public_access=config.get("public_access") or DEFAULT_PUBLIC_ACCESS,
+        plugins_location=plugins_location,
+        scopes=scopes,
+    )
 
-PLUGINS_LOCATION = os.environ.get("PLUGINS_LOCATION", config.get("plugins_location"))
-API_ROOT = os.environ.get("API_ROOT", config.get("api_root", DEFAULT_API_ROOT))
-PRIVATE_KEY_LOCATION = os.environ.get(
-    "PRIVATE_KEY_LOCATION",
-    config.get("private_key_location", DEFAULT_PRIVATE_KEY_LOCATION),
-)
-PUBLIC_KEY_LOCATION = os.environ.get(
-    "PUBLIC_KEY_LOCATION",
-    config.get("public_key_location", DEFAULT_PUBLIC_KEY_LOCATION),
-)
-PUBLIC_CERTIFICATE_LOCATION = os.environ.get(
-    "PUBLIC_CERTIFICATE_LOCATION",
-    config.get("public_certificate_location", DEFAULT_PUBLIC_CERTIFICATE_LOCATION),
-)
-PUBLIC_ACCESS = os.environ.get(
-    "PUBLIC_ACCESS", config.get("public_access", DEFAULT_PUBLIC_ACCESS)
-)
 
-SCOPES = config.get("scopes", {})
+def load_config():
+    from magicproxy.magictoken import Keys
+
+    CONFIG_FILE = os.environ.get("CONFIG_FILE")
+
+    config = from_file(CONFIG_FILE) if CONFIG_FILE else from_env()
+    config.keys = Keys.from_files(
+        config.private_key_location, config.public_certificate_location
+    )
+    return config
 
 
 def parse_permission(element: Union[str, Mapping]) -> Permission:
@@ -67,16 +102,3 @@ def parse_permission(element: Union[str, Mapping]) -> Permission:
             raise ValueError(
                 "a scope mapping should be a mapping with method, path keys"
             )
-
-
-for scope_key in SCOPES:
-    scope_elements = []
-    for scope_element in SCOPES[scope_key]:
-        scope_elements.append(parse_permission(scope_element))
-    SCOPES[scope_key] = scope_elements
-
-logger.debug("PLUGINS_LOCATION %s", PLUGINS_LOCATION)
-if PLUGINS_LOCATION:
-    SCOPES.update(**load_plugins(PLUGINS_LOCATION))
-
-logger.debug("SCOPES %s", SCOPES)

@@ -18,12 +18,12 @@ import aiohttp
 import aiohttp.web
 
 import magicproxy
-from magicproxy.magictoken import Keys, magictoken_params_validate
-from .config import API_ROOT
-from .headers import clean_request_headers, clean_response_headers
+from magicproxy.magictoken import magictoken_params_validate
 from . import magictoken
-from . import scopes
 from . import queries
+from . import scopes
+from .config import Config, load_config
+from .headers import clean_request_headers, clean_response_headers
 
 routes = aiohttp.web.RouteTableDef()
 logger = logging.getLogger(__name__)
@@ -34,22 +34,27 @@ custom_request_headers_to_clean: Set[str] = set()
 
 @routes.get("/__magictoken")
 async def magic_token_version(request):
+    CONFIG = request.app["CONFIG"]
     return aiohttp.web.Response(
-        body="magic API proxy for " + API_ROOT + " version " + magicproxy.__version__
+        body="magic API proxy for "
+        + CONFIG.api_root
+        + " version "
+        + magicproxy.__version__
     )
 
 
 @routes.post("/__magictoken")
 async def create_magic_token(request):
+    CONFIG = request.app["CONFIG"]
     params = await request.json()
 
     try:
-        magictoken_params_validate(params)
+        magictoken_params_validate(CONFIG, params)
     except ValueError as e:
         raise aiohttp.web.HTTPBadRequest(body=str(e))
 
     token = magictoken.create(
-        keys, params["token"], params.get("scopes"), params.get("allowed")
+        CONFIG.keys, params["token"], params.get("scopes"), params.get("allowed")
     )
 
     return aiohttp.web.Response(body=token, headers={"Content-Type": "application/jwt"})
@@ -93,6 +98,7 @@ async def _proxy_request(request, url, headers=None, **kwargs):
 
 @routes.route("*", "/{path:.*}")
 async def proxy_api(request):
+    CONFIG = request.app["CONFIG"]
     path = request.match_info["path"]
 
     auth_token = request.headers.get("Authorization")
@@ -104,11 +110,11 @@ async def proxy_api(request):
         auth_token = auth_token[len("Bearer ") :]
 
     # Validate the magic token
-    token_info = magictoken.decode(keys, auth_token)
+    token_info = magictoken.decode(CONFIG.keys, auth_token)
 
     # Validate scopes againt URL and method.
     if not scopes.validate_request(
-        request.method, request.path, token_info.scopes, token_info.allowed
+        CONFIG, request.method, request.path, token_info.scopes, token_info.allowed
     ):
         raise aiohttp.web.HTTPForbidden(body="Disallowed by API proxy.")
 
@@ -116,7 +122,7 @@ async def proxy_api(request):
 
     response = await _proxy_request(
         request=request,
-        url=f"{API_ROOT}/{path}",
+        url=f"{CONFIG.api_root}/{path}",
         headers={"Authorization": f"Bearer {token_info.token}"},
     )
 
@@ -127,10 +133,16 @@ async def proxy_api(request):
     return response
 
 
-async def build_app(argv):
-    global keys
-    keys = Keys.from_env()
-
+async def build_app(config: Config = None):
     app = aiohttp.web.Application()
+    if config is None:
+        config = load_config()
+    app["CONFIG"] = config
     app.add_routes(routes)
+    return app
+
+
+def run_app(host, port, config: Config = None):
+    app = build_app(config)
+    aiohttp.web.run_app(app, host=host, port=port)
     return app

@@ -17,8 +17,11 @@ import sys
 
 from invoke import task
 
-from magicproxy.config import PUBLIC_ACCESS
+from magicproxy.config import load_config
 from magicproxy.crypto import generate_keys
+
+
+config = load_config()
 
 
 @task
@@ -26,8 +29,8 @@ def create_token(c):
     import requests
 
     url = (
-        PUBLIC_ACCESS
-        if PUBLIC_ACCESS
+        config.PUBLIC_ACCESS
+        if config.PUBLIC_ACCESS
         else input("Enter the URL for your proxy (https://example.com): ")
     )
     token = input("Enter your API Token: ")
@@ -46,9 +49,10 @@ def create_token(c):
 
 @task
 def generate_keys(c, url=None):
-    if url is None and PUBLIC_ACCESS is None:
+    if url is None and config.public_access is None:
         url = input("Enter the URL for your proxy (https://example.com): ")
-    generate_keys(url)
+    config.public_access = url
+    generate_keys(config)
 
 
 @task
@@ -68,27 +72,27 @@ COV_LINE = "import coverage; coverage.process_startup()"
 @task
 def install_coverage_subprocess(c):
     prefix = site.PREFIXES[0]
-    pth_file = os.path.join(prefix, 'coverage_process_start.pth')
+    pth_file = os.path.join(prefix, "coverage_process_start.pth")
     if os.path.exists(pth_file):
         if COV_LINE in open(pth_file).read():
-            print('already there')
+            print("already there")
             return
-    with open(pth_file, 'w') as sitecustomize_file:
+    with open(pth_file, "w") as sitecustomize_file:
         sitecustomize_file.write(COV_LINE)
 
 
 @task
 def uninstall_coverage_subprocess(c):
     prefix = site.PREFIXES[0]
-    pth_file = os.path.join(prefix, 'coverage_process_start.pth')
+    pth_file = os.path.join(prefix, "coverage_process_start.pth")
     if not os.path.exists(pth_file):
-        return print('ok, no pth_file')
+        return print("ok, no pth_file")
     pth_file_content = open(pth_file).read()
     if COV_LINE not in pth_file_content:
-        return print('not installed in pth file')
+        return print("not installed in pth file")
 
     os.remove(pth_file_content)
-    print('ok, pth file removed')
+    print("ok, pth file removed")
 
 
 @task
@@ -96,7 +100,7 @@ def test(c):
     c.run("pip install -e .")
     args = tuple()
     if "--" in sys.argv:
-        args = sys.argv[sys.argv.index("--") + 1:]
+        args = sys.argv[sys.argv.index("--") + 1 :]
 
     c.run("pytest tests " + " ".join(args))
 
@@ -106,7 +110,7 @@ def coverage(c):
     c.run("pip install -e .")
     args = tuple()
     if "--" in sys.argv:
-        args = sys.argv[sys.argv.index("--") + 1:]
+        args = sys.argv[sys.argv.index("--") + 1 :]
 
     c.run("coverage run -m pytest tests " + " ".join(args))
     c.run("coverage combine .coverage*")

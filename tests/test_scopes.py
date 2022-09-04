@@ -1,4 +1,4 @@
-from magicproxy.config import SCOPES
+from magicproxy.config import Config
 from magicproxy.scopes import is_request_allowed, validate_request
 from magicproxy.types import Permission
 
@@ -25,51 +25,57 @@ def test_valid_scopes():
 
 def test_request_allowed():
     allowed = ["GET /this", "GET /that"]
-    assert validate_request("GET", "/this", allowed=allowed)
-    assert validate_request("GET", "/that", allowed=allowed)
-    assert not validate_request("GET", "/notthat", allowed=allowed)
-    assert not validate_request("POST", "/this", allowed=allowed)
+    config = Config()
+    assert validate_request(config, "GET", "/this", allowed=allowed)
+    assert validate_request(config, "GET", "/that", allowed=allowed)
+    assert not validate_request(config, "GET", "/notthat", allowed=allowed)
+    assert not validate_request(config, "POST", "/this", allowed=allowed)
 
 
 def test_request_scopes():
-    SCOPES["this_scope"] = [
-        Permission(method="GET", path="/this"),
-        Permission(method="GET", path="/that"),
-    ]
+    config = Config(
+        scopes={
+            "this_scope": [
+                Permission(method="GET", path="/this"),
+                Permission(method="GET", path="/that"),
+            ]
+        }
+    )
     scopes = ["this_scope"]
-    assert validate_request("GET", "/this", scopes=scopes)
-    assert validate_request("GET", "/that", scopes=scopes)
-    assert not validate_request("GET", "/notthat", scopes=scopes)
-    assert not validate_request("POST", "/this", scopes=scopes)
+    assert validate_request(config, "GET", "/this", scopes=scopes)
+    assert validate_request(config, "GET", "/that", scopes=scopes)
+    assert not validate_request(config, "GET", "/notthat", scopes=scopes)
+    assert not validate_request(config, "POST", "/this", scopes=scopes)
 
-    assert validate_request("GET", "/this", scopes=scopes)
-    assert validate_request("GET", "/that", scopes=scopes)
-    assert not validate_request("GET", "/notthat", scopes=scopes)
-    assert not validate_request("POST", "/this", scopes=scopes)
-
-    del SCOPES["this_scope"]
+    assert validate_request(config, "GET", "/this", scopes=scopes)
+    assert validate_request(config, "GET", "/that", scopes=scopes)
+    assert not validate_request(config, "GET", "/notthat", scopes=scopes)
+    assert not validate_request(config, "POST", "/this", scopes=scopes)
 
 
 def test_request_multiple_scopes():
-    SCOPES["this_scope"] = [
-        Permission(method="GET", path="/this"),
-        Permission(method="GET", path="/that"),
-    ]
-    SCOPES["another_scope"] = [
-        Permission(method="POST", path="/those"),
-    ]
-    SCOPES["or_another_scope"] = [
-        Permission(method="POST", path="/them"),
-    ]
+    config = Config(
+        scopes={
+            "this_scope": [
+                Permission(method="GET", path="/this"),
+                Permission(method="GET", path="/that"),
+            ],
+            "another_scope": [
+                Permission(method="POST", path="/those"),
+            ],
+            "or_another_scope": [
+                Permission(method="POST", path="/them"),
+            ],
+        }
+    )
+
     scopes = ["this_scope"]
     other_scopes = ["another_scope", "or_another_scope"]
 
-    assert validate_request("GET", "/this", scopes=scopes)
-    assert validate_request("GET", "/that", scopes=scopes)
-    assert not validate_request("GET", "/those", scopes=scopes)
+    assert validate_request(config, "GET", "/this", scopes=scopes)
+    assert validate_request(config, "GET", "/that", scopes=scopes)
+    assert not validate_request(config, "GET", "/those", scopes=scopes)
 
-    assert validate_request("POST", "/those", scopes=other_scopes)
-    assert validate_request("POST", "/them", scopes=other_scopes)
-    assert not validate_request("GET", "/those", scopes=other_scopes)
-
-    del SCOPES["this_scope"]
+    assert validate_request(config, "POST", "/those", scopes=other_scopes)
+    assert validate_request(config, "POST", "/them", scopes=other_scopes)
+    assert not validate_request(config, "GET", "/those", scopes=other_scopes)
